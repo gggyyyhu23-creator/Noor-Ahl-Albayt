@@ -1,0 +1,566 @@
+export interface SurahMeta {
+  number: number;
+  name: string;
+  englishName: string;
+  revelationType: 'مكية' | 'مدنية';
+  numberOfAyahs: number;
+  startPage: number;
+  endPage: number;
+  juz: number;
+}
+
+export interface QuranPageData {
+  pageNumber: number;
+  juz: number;
+  hizb: number;
+  surahName: string;
+  ayahs: {
+    surahNumber: number;
+    ayahNumber: number;
+    text: string;
+    isBismillah?: boolean;
+    isSurahStart?: boolean;
+    surahTitle?: string;
+  }[];
+}
+
+export interface QuranAyahDetail {
+  numberInSurah: number;
+  text: string;
+  simpleMeaning?: string;
+}
+
+export interface SurahTextDetail {
+  number: number;
+  name: string;
+  revelationType: 'مكية' | 'مدنية';
+  numberOfAyahs: number;
+  bismillahPre: boolean;
+  intro: string;
+  virtue: string;
+  ayahs: QuranAyahDetail[];
+}
+
+export interface Reciter {
+  id: string;
+  name: string;
+  style: string;
+  identifier: string;
+  sampleUrl: (surahNumber: number) => string;
+}
+
+export const RECITERS_LIST: Reciter[] = [
+  {
+    id: 'maytham-al-tammar',
+    name: 'ميثم التمّار',
+    style: 'ترتيل عراقي حزين وشجي',
+    identifier: 'Maytham_Al_Tammar',
+    sampleUrl: (num: number) => `https://server8.mp3quran.net/tammar/${num.toString().padStart(3, '0')}.mp3`,
+  },
+  {
+    id: 'amer-al-kazemi',
+    name: 'عامر الكاظمي',
+    style: 'تلاوة عراقية خاشعة ومميزة',
+    identifier: 'Amer_Al_Kazemi',
+    sampleUrl: (num: number) => `https://server14.mp3quran.net/kazmi/${num.toString().padStart(3, '0')}.mp3`,
+  },
+  {
+    id: 'abdulbasit-murattal',
+    name: 'عبد الباسط عبد الصمد',
+    style: 'مرتل مصري كلاسيكي أصيل',
+    identifier: 'ar.abdulbasit',
+    sampleUrl: (num: number) => `https://server7.mp3quran.net/basit/${num.toString().padStart(3, '0')}.mp3`,
+  },
+  {
+    id: 'mishary-alafasy',
+    name: 'مشاري بن راشد العفاسي',
+    style: 'ترتيل ندي وواضح',
+    identifier: 'ar.alafasy',
+    sampleUrl: (num: number) => `https://server8.mp3quran.net/afs/${num.toString().padStart(3, '0')}.mp3`,
+  },
+  {
+    id: 'saad-al-ghamdi',
+    name: 'سعد الغامدي',
+    style: 'ترتيل سريع وسلس للحفظ',
+    identifier: 'ar.saadalghamidi',
+    sampleUrl: (num: number) => `https://server7.mp3quran.net/s_gmd/${num.toString().padStart(3, '0')}.mp3`,
+  },
+];
+
+export const SURAHS_DIRECTORY: SurahMeta[] = [
+  { number: 1, name: 'الفاتحة', englishName: 'Al-Fatihah', revelationType: 'مكية', numberOfAyahs: 7, startPage: 1, endPage: 1, juz: 1 },
+  { number: 2, name: 'البقرة', englishName: 'Al-Baqarah', revelationType: 'مدنية', numberOfAyahs: 286, startPage: 2, endPage: 49, juz: 1 },
+  { number: 3, name: 'آل عمران', englishName: 'Ali \'Imran', revelationType: 'مدنية', numberOfAyahs: 200, startPage: 50, endPage: 76, juz: 3 },
+  { number: 18, name: 'الكهف', englishName: 'Al-Kahf', revelationType: 'مكية', numberOfAyahs: 110, startPage: 293, endPage: 304, juz: 15 },
+  { number: 36, name: 'يس', englishName: 'Ya-Sin', revelationType: 'مكية', numberOfAyahs: 83, startPage: 440, endPage: 445, juz: 22 },
+  { number: 55, name: 'الرحمن', englishName: 'Ar-Rahman', revelationType: 'مدنية', numberOfAyahs: 78, startPage: 531, endPage: 534, juz: 27 },
+  { number: 56, name: 'الواقعة', englishName: 'Al-Waqi\'ah', revelationType: 'مكية', numberOfAyahs: 96, startPage: 534, endPage: 537, juz: 27 },
+  { number: 67, name: 'الملك', englishName: 'Al-Mulk', revelationType: 'مكية', numberOfAyahs: 30, startPage: 562, endPage: 564, juz: 29 },
+  { number: 76, name: 'الإنسان (الدهر)', englishName: 'Al-Insan', revelationType: 'مدنية', numberOfAyahs: 31, startPage: 578, endPage: 580, juz: 29 },
+  { number: 93, name: 'الضحى', englishName: 'Ad-Duha', revelationType: 'مكية', numberOfAyahs: 11, startPage: 596, endPage: 596, juz: 30 },
+  { number: 94, name: 'الشرح', englishName: 'Ash-Sharh', revelationType: 'مكية', numberOfAyahs: 8, startPage: 596, endPage: 596, juz: 30 },
+  { number: 97, name: 'القدر', englishName: 'Al-Qadr', revelationType: 'مكية', numberOfAyahs: 5, startPage: 598, endPage: 598, juz: 30 },
+  { number: 103, name: 'العصر', englishName: 'Al-Asr', revelationType: 'مكية', numberOfAyahs: 3, startPage: 601, endPage: 601, juz: 30 },
+  { number: 108, name: 'الكوثر', englishName: 'Al-Kawthar', revelationType: 'مكية', numberOfAyahs: 3, startPage: 602, endPage: 602, juz: 30 },
+  { number: 112, name: 'الإخلاص (التوحيد)', englishName: 'Al-Ikhlas', revelationType: 'مكية', numberOfAyahs: 4, startPage: 604, endPage: 604, juz: 30 },
+  { number: 113, name: 'الفلق', englishName: 'Al-Falaq', revelationType: 'مكية', numberOfAyahs: 5, startPage: 604, endPage: 604, juz: 30 },
+  { number: 114, name: 'الناس', englishName: 'An-Nas', revelationType: 'مكية', numberOfAyahs: 6, startPage: 604, endPage: 604, juz: 30 },
+];
+
+// Rich text representation for "العرض النصي"
+export const SURAHS_TEXT_DATA: Record<number, SurahTextDetail> = {
+  1: {
+    number: 1,
+    name: 'الفاتحة',
+    revelationType: 'مكية',
+    numberOfAyahs: 7,
+    bismillahPre: false,
+    intro: 'سورة الفاتحة أم الكتاب والسبع المثاني، تبدأ بالبسملة كآية تامة من السورة المباركة طبقاً لمذهب أهل البيت (ع).',
+    virtue: 'عن النبي (ص): من قرأ فاتحة الكتاب أعطاه الله بعدد كل آية نزلت من السماء ثواب قارئها.',
+    ayahs: [
+      { numberInSurah: 1, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', simpleMeaning: 'أبدأ قراءتي مستعيناً بالاسم الأقدس للّه المنعم برحمته العامة والخاصة.' },
+      { numberInSurah: 2, text: 'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ', simpleMeaning: 'الثناء الكامل والمطلق لله تعالى المربي والمالك لكل العوالم والمخلوقات.' },
+      { numberInSurah: 3, text: 'الرَّحْمَٰنِ الرَّحِيمِ', simpleMeaning: 'الواسع الرحمة التي تشمل كل شيء، والخاص برحمته بالمؤمنين في دار الآخرة.' },
+      { numberInSurah: 4, text: 'مَالِكِ يَوْمِ الدِّينِ', simpleMeaning: 'المتصرف وحده بالحكم والجزاء في يوم الحساب والقيامة.' },
+      { numberInSurah: 5, text: 'إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ', simpleMeaning: 'نخصك وحدك بالعبادة والطاعة، ونخصك وحدك بطلب العون والتوفيق.' },
+      { numberInSurah: 6, text: 'اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ', simpleMeaning: 'وفقنا وثبتنا على النهج القويم الواضح وهو دين الحق وولاية أهل البيت.' },
+      { numberInSurah: 7, text: 'صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ', simpleMeaning: 'طريق الأنبياء والصديقين والشهداء والصالحين، لا سبيل المعاندين المنحرفين.' },
+    ],
+  },
+  2: {
+    number: 2,
+    name: 'البقرة (مختارات)',
+    revelationType: 'مدنية',
+    numberOfAyahs: 286,
+    bismillahPre: true,
+    intro: 'أطول سور القرآن الكريم، وتشتمل على أصول العقيدة والتشريع وأعظم آيات القرآن وهي آية الكرسي.',
+    virtue: 'عن الإمام الصادق (ع): لكل شيء ذروة، وذروة القرآن سورة البقرة، وفيها آية الكرسي.',
+    ayahs: [
+      { numberInSurah: 1, text: 'الم', simpleMeaning: 'حروف مقطعة تدل على إعجاز القرآن المكون من لغة العرب وعجزهم عن معارضته.' },
+      { numberInSurah: 2, text: 'ذَٰلِكَ الْكِتَابُ لَا رَيْبَ ۛ فِيهِ ۛ هُدًى لِّلْمُتَّقِينَ', simpleMeaning: 'هذا القرآن لا شك في صدقه وأنه من عند الله، يهدي القلوب المتقية.' },
+      { numberInSurah: 3, text: 'الَّذِينَ يُؤْمِنُونَ بِالْغَيْبِ وَيُقِيمُونَ الصَّلَاةَ وَمِمَّا رَزَقْنَاهُمْ يُنفِقُونَ', simpleMeaning: 'يصدقون بما غاب عن حسهم من الله والآخرة ويقيمون الصلاة بحدودها وينفقون مما رزقهم الله.' },
+      { numberInSurah: 255, text: 'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ', simpleMeaning: 'سيدة آيات القرآن الكريم؛ تتضمن أعظم صفات الألوهية والتوحيد والعظمة الإلهية المطلقة.' },
+      { numberInSurah: 256, text: 'لَا إِكْرَاهَ فِي الدِّينِ ۖ قَد تَّبَيَّنَ الرُّشْدُ مِنَ الْغَيِّ ۚ فَمَن يَكْفُرْ بِالطَّاغُوتِ وَيُؤْمِن بِاللَّهِ فَقَدِ اسْتَمْسَكَ بِالْعُرْوَةِ الْوُثْقَىٰ لَا انفِصَامَ لَهَا ۗ وَاللَّهُ سَمِيعٌ عَلِيمٌ', simpleMeaning: 'الإيمان اختيار وبصيرة بعد وضوح الحق، والتمسك بالحق هو العروة الوثقى التي لا تنفصم.' },
+      { numberInSurah: 257, text: 'اللَّهُ وَلِيُّ الَّذِينَ آمَنُوا يُخْرِجُهُم مِّنَ الظُّلُمَاتِ إِلَى النُّورِ ۖ وَالَّذِينَ كَفَرُوا أَوْلِيَاؤُهُمُ الطَّاغُوتُ يُخْرِجُونَهُم مِّنَ النُّورِ إِلَى الظُّلُمَاتِ ۗ أُولَٰئِكَ أَصْحَابُ النَّارِ ۖ هُمْ فِيهَا خَالِدُونَ', simpleMeaning: 'الله متولي أمور المؤمنين بالهداية والتثبيت، بينما الطاغوت يضل أهل الباطل.' },
+    ],
+  },
+  36: {
+    number: 36,
+    name: 'يس',
+    revelationType: 'مكية',
+    numberOfAyahs: 83,
+    bismillahPre: true,
+    intro: 'قلب القرآن الكريم، تحث على التدبر في آيات الآفاق والأنفس وتؤكد حقانية الرسالة والبعث.',
+    virtue: 'روي عن الإمام الصادق (ع): إن لكل شيء قلباً وقلب القرآن يس، فمن قرأها في نهاره كان من المحفوظين والمرزوقين.',
+    ayahs: [
+      { numberInSurah: 1, text: 'يس', simpleMeaning: 'يا سيد البشر، وهو من أسماء النبي محمد (ص).' },
+      { numberInSurah: 2, text: 'وَالْقُرْآنِ الْحَكِيمِ', simpleMeaning: 'قسم بالقرآن المحكم في نظمه وأحكامه وبيانه.' },
+      { numberInSurah: 3, text: 'إِنَّكَ لَمِنَ الْمُرْسَلِينَ', simpleMeaning: 'تأكيد من الله لنبوة خاتم الأنبياء محمد (ص).' },
+      { numberInSurah: 4, text: 'عَلَىٰ صِرَاطٍ مُّسْتَقِيمٍ', simpleMeaning: 'طريق واضح مستقيم لا عوج فيه يقود إلى رضوان الله.' },
+      { numberInSurah: 5, text: 'تَنزِيلَ الْعَزِيزِ الرَّحِيمِ', simpleMeaning: 'منزل من الله القوي العزيز، والرحيم بعباده.' },
+      { numberInSurah: 6, text: 'لِتُنذِرَ قَوْماً مَّا أُنذِرَ آبَاؤُهُمْ فَهُمْ غَافِلُونَ', simpleMeaning: 'لتنذرهم عاقبة الغفلة والانحراف وتدعوهم إلى النجاة.' },
+      { numberInSurah: 12, text: 'إِنَّا نَحْنُ نُحْيِي الْمَوْتَىٰ وَنَكْتُبُ مَا قَدَّمُوا وَآثَارَهُمْ ۚ وَكُلَّ شَيْءٍ أَحْصَيْنَاهُ فِي إِمَامٍ مُّبِينٍ', simpleMeaning: 'الله يحيي الموتى ويحصي الأعمال، وكل شيء مدون ومحفوظ في كتاب مبين وإمام هادٍ.' },
+    ],
+  },
+  55: {
+    number: 55,
+    name: 'الرحمن',
+    revelationType: 'مدنية',
+    numberOfAyahs: 78,
+    bismillahPre: true,
+    intro: 'عروس القرآن، تكرر التنبيه الإلهي على نعم الله التي لا تحصى «فَبِأَيِّ آلَاءِ رَبِّكُمَا تُكَذِّبَانِ».',
+    virtue: 'عن الإمام الصادق (ع): لا تدعوا قراءة سورة الرحمن والقيام بها؛ فإنها لا تقر في قلوب المنافقين.',
+    ayahs: [
+      { numberInSurah: 1, text: 'الرَّحْمَٰنُ', simpleMeaning: 'المتصف بالرحمة الواسعة الشاملة لجميع خلقه.' },
+      { numberInSurah: 2, text: 'عَلَّمَ الْقُرْآنَ', simpleMeaning: 'أعظم النعم بتعليم الوحي الإلهي والهدى المبين.' },
+      { numberInSurah: 3, text: 'خَلَقَ الْإِنسَانَ', simpleMeaning: 'أوجده في أحسن تقويم ومنحه العقل والإرادة.' },
+      { numberInSurah: 4, text: 'عَلَّمَهُ الْبَيَانَ', simpleMeaning: 'أعطاه القدرة على النطق والتعبير وفهم الحقائق.' },
+      { numberInSurah: 13, text: 'فَبِأَيِّ آلَاءِ رَبِّكُمَا تُكَذِّبَانِ', simpleMeaning: 'بأي نعمة من نعم ربكم الجليلة تكذبون يا معشر الجن والإنس؟' },
+    ],
+  },
+  56: {
+    number: 56,
+    name: 'الواقعة',
+    revelationType: 'مكية',
+    numberOfAyahs: 96,
+    bismillahPre: true,
+    intro: 'سورة القيامة والجزاء، توضح أقسام الناس الثلاثة: السابقون، وأصحاب اليمين، وأصحاب الشمال.',
+    virtue: 'عن الإمام الصادق (ع): من اشتاق إلى الجنة وإلى صفتها فليقرأ الواقعة، ومن قرأها كل ليلة جمعة أحبه الله والناس أجمعين.',
+    ayahs: [
+      { numberInSurah: 1, text: 'إِذَا وَقَعَتِ الْوَاقِعَةُ', simpleMeaning: 'إذا قامت القيامة ونزل أمر الله الحاسم.' },
+      { numberInSurah: 2, text: 'لَيْسَ لِوَقْعَتِهَا كَاذِبَةٌ', simpleMeaning: 'وقوعها حتمي لا ريب فيه ولا رجعة.' },
+      { numberInSurah: 3, text: 'خَافِضَةٌ رَّافِعَةٌ', simpleMeaning: 'تخفض أهل الباطل إلى الجحيم، وترفع أهل التقوى إلى أعلى عليين.' },
+      { numberInSurah: 10, text: 'وَالسَّابِقُونَ السَّابِقُونَ', simpleMeaning: 'السابقون إلى الإيمان والجهاد والعمل الصالح وولاية الله.' },
+      { numberInSurah: 11, text: 'أُولَٰئِكَ الْمُقَرَّبُونَ', simpleMeaning: 'هم المقربون عند ربهم في روضات الجنات.' },
+    ],
+  },
+  67: {
+    number: 67,
+    name: 'الملك',
+    revelationType: 'مكية',
+    numberOfAyahs: 30,
+    bismillahPre: true,
+    intro: 'المانعة المنجية من عذاب القبر، تبرز عظمة الخالق وسلطانه في السموات والأرض والموت والحياة.',
+    virtue: 'عن النبي (ص): إن سورة من كتاب الله ما هي إلا ثلاثون آية شفعت لرجل حتى غفر له: تبارك الذي بيده الملك.',
+    ayahs: [
+      { numberInSurah: 1, text: 'تَبَارَكَ الَّذِي بِيَدِهِ الْمُلْكُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ', simpleMeaning: 'تعالى وتعاظم خير الله الذي بيده تصريف الملك كله وله القدرة التامة.' },
+      { numberInSurah: 2, text: 'الَّذِي خَلَقَ الْمَوْتَ وَالْحَيَاةَ لِيَبْلُوَكُمْ أَيُّكُمْ أَحْسَنُ عَمَلاً ۚ وَهُوَ الْعَزِيزُ الْغَفُورُ', simpleMeaning: 'جعل الموت والحياة اختباراً لمن هو أخلص وأحسن عملاً في طاعة الله.' },
+      { numberInSurah: 3, text: 'الَّذِي خَلَقَ سَبْعَ سَمَاوَاتٍ طِبَاقاً ۖ مَّا تَرَىٰ فِي خَلْقِ الرَّحْمَٰنِ مِن تَفَاوُتٍ ۖ فَارْجِعِ الْبَصَرَ هَلْ تَرَىٰ مِن فُطُورٍ', simpleMeaning: 'إتقان الصنع في خلق السموات بلا خلل أو نقص يشهد بوحدانية الخالق.' },
+    ],
+  },
+  76: {
+    number: 76,
+    name: 'الإنسان (هل أتى)',
+    revelationType: 'مدنية',
+    numberOfAyahs: 31,
+    bismillahPre: true,
+    intro: 'نزلت في أهل البيت (علي وفاطمة والحسن والحسين عليهم السلام) حين تصدقوا بطعامهم لثلاث ليالٍ على المسكين واليتيم والأسير لوجه الله.',
+    virtue: 'عن الإمام الباقر (ع): من قرأ هل أتى في كل غداة خميس زوجه الله من الحور العين ثمانمائة عذراء وأربعة آلاف ثيب وكان مع محمد (ص).',
+    ayahs: [
+      { numberInSurah: 1, text: 'هَلْ أَتَىٰ عَلَى الْإِنسَانِ حِينٌ مِّنَ الدَّهْرِ لَمْ يَكُن شَيْئاً مَّذْكُوراً', simpleMeaning: 'مضى زمان طويل لم يكن الإنسان فيه موجوداً ولا مذكوراً حتى خلقه الله بقدرته.' },
+      { numberInSurah: 7, text: 'يُوفُونَ بِالنَّذْرِ وَيَخَافُونَ يَوْماً كَانَ شَرُّهُ مُسْتَطِيراً', simpleMeaning: 'وصف علي وفاطمة في وفائهما بالنذر حين صاموا وخوفهم من هول يوم القيامة.' },
+      { numberInSurah: 8, text: 'وَيُطْعِمُونَ الطَّعَامَ عَلَىٰ حُبِّهِ مِسْكِيناً وَيَتِيماً وَأَسِيراً', simpleMeaning: 'يؤثرون بطعامهم رغم جوعهم وحاجتهم إياه المحتاجين قربة إلى الله.' },
+      { numberInSurah: 9, text: 'إِنَّمَا نُطْعِمُكُمْ لِوَجْهِ اللَّهِ لَا نُرِيدُ مِنكُمْ جَزَاءً وَلَا شُكُوراً', simpleMeaning: 'إخلاص نقي لله دون انتظار ثناء أو مكافأة من أحد.' },
+      { numberInSurah: 10, text: 'إِنَّا نَخَافُ مِن رَّبِّنَا يَوْماً عَبُوساً قَمْطَرِيراً', simpleMeaning: 'خوف التقوى والورع من عذاب ذلك اليوم الشديد.' },
+      { numberInSurah: 11, text: 'فَوَقَاهُمُ اللَّهُ شَرَّ ذَٰلِكَ الْيَوْمِ وَلَقَّاهُمْ نَضْرَةً وَسُرُوراً', simpleMeaning: 'فأمنهم الله وأورثهم البهجة والنعيم في مقعد صدق عنده.' },
+      { numberInSurah: 12, text: 'وَجَزَاهُم بِمَا صَبَرُوا جَنَّةً وَحَرِيراً', simpleMeaning: 'جائزتهم بصبرهم وإيثارهم جنات النعيم والخلود.' },
+    ],
+  },
+  97: {
+    number: 97,
+    name: 'القدر',
+    revelationType: 'مكية',
+    numberOfAyahs: 5,
+    bismillahPre: true,
+    intro: 'سورة ليلة القدر المباركة التي أنزل فيها القرآن وتتنزل فيها الملائكة والروح على حجة الله في الأرض.',
+    virtue: 'عن الإمام الباقر (ع): من قرأ إنا أنزلناه بجهر كان كشاهر سيفه في سبيل الله، ومن قرأها سراً كان كالمتشحط بدمه في سبيل الله.',
+    ayahs: [
+      { numberInSurah: 1, text: 'إِنَّا أَنزَلْنَاهُ فِي لَيْلَةِ الْقَدْرِ', simpleMeaning: 'أنزل الله القرآن جملة واحدة إلى البيت المعمور في ليلة الشرف والعظمة.' },
+      { numberInSurah: 2, text: 'وَمَا أَدْرَاكَ مَا لَيْلَةُ الْقَدْرِ', simpleMeaning: 'تعظيم لشأن هذه الليلة ومكانتها السامية عند الله.' },
+      { numberInSurah: 3, text: 'لَيْلَةُ الْقَدْرِ خَيْرٌ مِّنْ أَلْفِ شَهْرٍ', simpleMeaning: 'العمل الصالح فيها والعبادة تفضل عبادة ثلاثة وثمانين عاماً.' },
+      { numberInSurah: 4, text: 'تَنَزَّلُ الْمَلَائِكَةُ وَالرُّوحُ فِيهَا بِإِذْنِ رَبِّهِم مِّن كُلِّ أَمْرٍ', simpleMeaning: 'تهبط الملائكة بالتقديرات السنوية على الإمام المعصوم صاحب الزمان (عج).' },
+      { numberInSurah: 5, text: 'سَلَامٌ هِيَ حَتَّىٰ مَطْلَعِ الْفَجْرِ', simpleMeaning: 'سلام وأمان وبركة مستمرة للمؤمنين حتى مطلع الفجر.' },
+    ],
+  },
+  108: {
+    number: 108,
+    name: 'الكوثر',
+    revelationType: 'مكية',
+    numberOfAyahs: 3,
+    bismillahPre: true,
+    intro: 'أقصر سور القرآن، نزلت تبشيراً للنبي (ص) بالكوثر وهي فاطمة الزهراء (ع) وبركة نسلها الطاهر الأئمة المعصومين.',
+    virtue: 'عن الإمام الصادق (ع): من كانت قراءته «إنا أعطيناك الكوثر» في فرائضه ونوافله سقاه الله من الكوثر يوم القيامة.',
+    ayahs: [
+      { numberInSurah: 1, text: 'إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ', simpleMeaning: 'منحناك يا محمد الخير الكثير الدائم، والذرية الطاهرة المباركة فاطمة الزهراء.' },
+      { numberInSurah: 2, text: 'فَصَلِّ لِرَبِّكَ وَانْحَرْ', simpleMeaning: 'أدم الصلاة لله شكرًا وارفع يديك بالتكبير عند نحرك في الصلاة وقدم الأضاحي.' },
+      { numberInSurah: 3, text: 'إِنَّ شَانِئَكَ هُوَ الْأَبْتَرُ', simpleMeaning: 'إن عدوك ومبغضك هو المنقطع ذكره ونسله وأثره، أما نسلك فباقٍ إلى يوم القيامة.' },
+    ],
+  },
+  112: {
+    number: 112,
+    name: 'الإخلاص (التوحيد)',
+    revelationType: 'مكية',
+    numberOfAyahs: 4,
+    bismillahPre: true,
+    intro: 'سورة التوحيد الخالص لله وتعدل ثلث القرآن الكريم، تصف الذات الإلهية المقدسة بأجلّ الصفات.',
+    virtue: 'عن النبي (ص): من قرأ قل هو الله أحد فكأنما قرأ ثلث القرآن، ومن قرأها ثلاثاً فكأنما ختم القرآن.',
+    ayahs: [
+      { numberInSurah: 1, text: 'قُلْ هُوَ اللَّهُ أَحَدٌ', simpleMeaning: 'الله واحد أحد لا شريك له ولا نظير في ذاته وصفاته.' },
+      { numberInSurah: 2, text: 'اللَّهُ الصَّمَدُ', simpleMeaning: 'المقصود في الحوائج الذي يحتاجه كل موجود وهو غني عن كل شيء.' },
+      { numberInSurah: 3, text: 'لَمْ يَلِدْ وَلَمْ يُولَدْ', simpleMeaning: 'منزه عن التناسل والأصل والفرع والزمان.' },
+      { numberInSurah: 4, text: 'وَلَمْ يَكُن لَّهُ كُفُواً أَحَدٌ', simpleMeaning: 'ليس له مكافئ ولا مثيل ولا شبيه في أي وجه من الوجوه.' },
+    ],
+  },
+  113: {
+    number: 113,
+    name: 'الفلق',
+    revelationType: 'مكية',
+    numberOfAyahs: 5,
+    bismillahPre: true,
+    intro: 'المعوذة الأولى للاستعاذة برب الصبح وفالق الحب من شرور المخلوقات والظلمات والحاسدين.',
+    virtue: 'عن الإمام الباقر (ع): من أوتر بالمعوذتين وقل هو الله أحد قيل له: يا عبد الله أبشر فقد قبل الله وترك.',
+    ayahs: [
+      { numberInSurah: 1, text: 'قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ', simpleMeaning: 'أعتصم وألتجئ برب الصبح المنفلق بالنور.' },
+      { numberInSurah: 2, text: 'مِن شَرِّ مَا خَلَقَ', simpleMeaning: 'من شر جميع المخلوقات المؤذية.' },
+      { numberInSurah: 3, text: 'وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ', simpleMeaning: 'ومن شر الليل إذا أظلم ودخل في كل شيء.' },
+      { numberInSurah: 4, text: 'وَمِن شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ', simpleMeaning: 'ومن شر السواحر وقوى الشر التي تفرق بين الناس.' },
+      { numberInSurah: 5, text: 'وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ', simpleMeaning: 'ومن شر الحاسد إذا أظهر حسده وتمنى زوال النعمة.' },
+    ],
+  },
+  114: {
+    number: 114,
+    name: 'الناس',
+    revelationType: 'مكية',
+    numberOfAyahs: 6,
+    bismillahPre: true,
+    intro: 'المعوذة الثانية للاستعاذة بمالك الناس وإلههم من الوسواس الخناس من الجنة والناس.',
+    virtue: 'حرز نبوي شريف للتحصين من وساوس الشياطين ونزغات النفوس الأمارة.',
+    ayahs: [
+      { numberInSurah: 1, text: 'قُلْ أَعُوذُ بِرَبِّ النَّاسِ', simpleMeaning: 'ألتجئ إلى خالق الناس ورازقهم ومربيهم.' },
+      { numberInSurah: 2, text: 'مَلِكِ النَّاسِ', simpleMeaning: 'المالك الحقيقي المتصرف في شؤونهم.' },
+      { numberInSurah: 3, text: 'إِلَٰهِ النَّاسِ', simpleMeaning: 'المعبود بحق الذي لا يستحق الألوهية غيره.' },
+      { numberInSurah: 4, text: 'مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ', simpleMeaning: 'من شر الشيطان الذي يوسوس عند الغفلة ويخنس عند ذكر الله.' },
+      { numberInSurah: 5, text: 'الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ', simpleMeaning: 'الذي يبث الأوهام والشكوك والشهوات في النفوس.' },
+      { numberInSurah: 6, text: 'مِنَ الْجِنَّةِ وَالنَّاسِ', simpleMeaning: 'سواء كان الموسوس من شياطين الجن أو شياطين الإنس.' },
+    ],
+  },
+};
+
+// Curated full page representations with rich Uthmani script and decorative borders for "عرض صفحات المصحف"
+export const MUSHAF_PAGES: Record<number, QuranPageData> = {
+  1: {
+    pageNumber: 1,
+    juz: 1,
+    hizb: 1,
+    surahName: 'سورة الفاتحة',
+    ayahs: [
+      { surahNumber: 1, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الْفَاتِحَةِ (مَكِّيَّةٌ - آيَاتُهَا ٧)' },
+      { surahNumber: 1, ayahNumber: 1, text: 'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ' },
+      { surahNumber: 1, ayahNumber: 2, text: 'الرَّحْمَٰنِ الرَّحِيمِ' },
+      { surahNumber: 1, ayahNumber: 3, text: 'مَالِكِ يَوْمِ الدِّينِ' },
+      { surahNumber: 1, ayahNumber: 4, text: 'إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ' },
+      { surahNumber: 1, ayahNumber: 5, text: 'اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ' },
+      { surahNumber: 1, ayahNumber: 6, text: 'صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ' },
+      { surahNumber: 1, ayahNumber: 7, text: 'غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ' },
+    ],
+  },
+  2: {
+    pageNumber: 2,
+    juz: 1,
+    hizb: 1,
+    surahName: 'سورة البقرة',
+    ayahs: [
+      { surahNumber: 2, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الْبَقَرَةِ (مَدَنِيَّةٌ)' },
+      { surahNumber: 2, ayahNumber: 1, text: 'الم' },
+      { surahNumber: 2, ayahNumber: 2, text: 'ذَٰلِكَ الْكِتَابُ لَا رَيْبَ ۛ فِيهِ ۛ هُدًى لِّلْمُتَّقِينَ' },
+      { surahNumber: 2, ayahNumber: 3, text: 'الَّذِينَ يُؤْمِنُونَ بِالْغَيْبِ وَيُقِيمُونَ الصَّلَاةَ وَمِمَّا رَزَقْنَاهُمْ يُنفِقُونَ' },
+      { surahNumber: 2, ayahNumber: 4, text: 'وَالَّذِينَ يُؤْمِنُونَ بِمَا أُنزِلَ إِلَيْكَ وَمَا أُنزِلَ مِن قَبْلِكَ وَبِالْآخِرَةِ هُمْ يُوقِنُونَ' },
+      { surahNumber: 2, ayahNumber: 5, text: 'أُولَٰئِكَ عَلَىٰ هُدًى مِّن رَّبِّهِمْ ۖ وَأُولَٰئِكَ هُمُ الْمُفْلِحُونَ' },
+    ],
+  },
+  3: {
+    pageNumber: 3,
+    juz: 1,
+    hizb: 1,
+    surahName: 'سورة البقرة',
+    ayahs: [
+      { surahNumber: 2, ayahNumber: 6, text: 'إِنَّ الَّذِينَ كَفَرُوا سَوَاءٌ عَلَيْهِمْ أَأَنذَرْتَهُمْ أَمْ لَمْ تُنذِرْهُمْ لَا يُؤْمِنُونَ' },
+      { surahNumber: 2, ayahNumber: 7, text: 'خَتَمَ اللَّهُ عَلَىٰ قُلُوبِهِمْ وَعَلَىٰ سَمْعِهِمْ ۖ وَعَلَىٰ أَبْصَارِهِمْ غِشَاوَةٌ ۖ وَلَهُمْ عَذَابٌ عَظِيمٌ' },
+      { surahNumber: 2, ayahNumber: 8, text: 'وَمِنَ النَّاسِ مَن يَقُولُ آمَنَّا بِاللَّهِ وَبِالْيَوْمِ الْآخِرِ وَمَا هُم بِمُؤْمِنِينَ' },
+      { surahNumber: 2, ayahNumber: 9, text: 'يُخَادِعُونَ اللَّهَ وَالَّذِينَ آمَنُوا وَمَا يَخْدَعُونَ إِلَّا أَنفُسَهُمْ وَمَا يَشْعُرُونَ' },
+      { surahNumber: 2, ayahNumber: 10, text: 'فِي قُلُوبِهِم مَّرَضٌ فَزَادَهُمُ اللَّهُ مَرَضاً ۖ وَلَهُمْ عَذَابٌ أَلِيمٌ بِمَا كَانُوا يَكْذِبُونَ' },
+      { surahNumber: 2, ayahNumber: 11, text: 'وَإِذَا قِيلَ لَهُمْ لَا تُفْسِدُوا فِي الْأَرْضِ قَالُوا إِنَّمَا نَحْنُ مُصْلِحُونَ' },
+    ],
+  },
+  42: {
+    pageNumber: 42,
+    juz: 3,
+    hizb: 5,
+    surahName: 'آية الكرسي - سورة البقرة',
+    ayahs: [
+      { surahNumber: 2, ayahNumber: 255, text: 'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ' },
+      { surahNumber: 2, ayahNumber: 256, text: 'لَا إِكْرَاهَ فِي الدِّينِ ۖ قَد تَّبَيَّنَ الرُّشْدُ مِنَ الْغَيِّ ۚ فَمَن يَكْفُرْ بِالطَّاغُوتِ وَيُؤْمِن بِاللَّهِ فَقَدِ اسْتَمْسَكَ بِالْعُرْوَةِ الْوُثْقَىٰ لَا انفِصَامَ لَهَا ۗ وَاللَّهُ سَمِيعٌ عَلِيمٌ' },
+      { surahNumber: 2, ayahNumber: 257, text: 'اللَّهُ وَلِيُّ الَّذِينَ آمَنُوا يُخْرِجُهُم مِّنَ الظُّلُمَاتِ إِلَى النُّورِ ۖ وَالَّذِينَ كَفَرُوا أَوْلِيَاؤُهُمُ الطَّاغُوتُ يُخْرِجُونَهُم مِّنَ النُّورِ إِلَى الظُّلُمَاتِ ۗ أُولَٰئِكَ أَصْحَابُ النَّارِ ۖ هُمْ فِيهَا خَالِدُونَ' },
+    ],
+  },
+  293: {
+    pageNumber: 293,
+    juz: 15,
+    hizb: 30,
+    surahName: 'سورة الكهف',
+    ayahs: [
+      { surahNumber: 18, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الْكَهْفِ (مَكِّيَّةٌ)' },
+      { surahNumber: 18, ayahNumber: 1, text: 'الْحَمْدُ لِلَّهِ الَّذِي أَنزَلَ عَلَىٰ عَبْدِهِ الْكِتَابَ وَلَمْ يَجْعَل لَّهُ عِوَجاً ۜ' },
+      { surahNumber: 18, ayahNumber: 2, text: 'قَيِّماً لِّيُنذِرَ بَأْساً شَدِيداً مِّن لَّدُنْهُ وَيُبَشِّرَ الْمُؤْمِنِينَ الَّذِينَ يَعْمَلُونَ الصَّالِحَاتِ أَنَّ لَهُمْ أَجْراً حَسَناً' },
+      { surahNumber: 18, ayahNumber: 3, text: 'مَّاكِثِينَ فِيهِ أَبَداً' },
+      { surahNumber: 18, ayahNumber: 4, text: 'وَيُنذِرَ الَّذِينَ قَالُوا اتَّخَذَ اللَّهُ وَلَداً' },
+      { surahNumber: 18, ayahNumber: 5, text: 'مَّا لَهُم بِهِ مِنْ عِلْمٍ وَلَا لِآبَائِهِمْ ۚ كَبُرَتْ كَلِمَةً تَخْرُجُ مِنْ أَفْوَاهِهِمْ ۚ إِن يَقُولُونَ إِلَّا كَذِباً' },
+      { surahNumber: 18, ayahNumber: 6, text: 'فَلَعَلَّكَ بَاخِعٌ نَّفْسَكَ عَلَىٰ آثَارِهِمْ إِن لَّمْ يُؤْمِنُوا بِهَٰذَا الْحَدِيثِ أَسَفاً' },
+    ],
+  },
+  440: {
+    pageNumber: 440,
+    juz: 22,
+    hizb: 44,
+    surahName: 'سورة يس (قلب القرآن)',
+    ayahs: [
+      { surahNumber: 36, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ يس (مَكِّيَّةٌ)' },
+      { surahNumber: 36, ayahNumber: 1, text: 'يس' },
+      { surahNumber: 36, ayahNumber: 2, text: 'وَالْقُرْآنِ الْحَكِيمِ' },
+      { surahNumber: 36, ayahNumber: 3, text: 'إِنَّكَ لَمِنَ الْمُرْسَلِينَ' },
+      { surahNumber: 36, ayahNumber: 4, text: 'عَلَىٰ صِرَاطٍ مُّسْتَقِيمٍ' },
+      { surahNumber: 36, ayahNumber: 5, text: 'تَنزِيلَ الْعَزِيزِ الرَّحِيمِ' },
+      { surahNumber: 36, ayahNumber: 6, text: 'لِتُنذِرَ قَوْماً مَّا أُنذِرَ آبَاؤُهُمْ فَهُمْ غَافِلُونَ' },
+      { surahNumber: 36, ayahNumber: 7, text: 'لَقَدْ حَقَّ الْقَوْلُ عَلَىٰ أَكْثَرِهِمْ فَهُمْ لَا يُؤْمِنُونَ' },
+      { surahNumber: 36, ayahNumber: 8, text: 'إِنَّا جَعَلْنَا فِي أَعْنَاقِهِمْ أَغْلَالاً فَهِيَ إِلَى الْأَذْقَانِ فَهُم مُّقْمَحُونَ' },
+      { surahNumber: 36, ayahNumber: 9, text: 'وَجَعَلْنَا مِن بَيْنِ أَيْدِيهِمْ سَدّاً وَمِنْ خَلْفِهِمْ سَدّاً فَأَغْشَيْنَاهُمْ فَهُمْ لَا يُبْصِرُونَ' },
+      { surahNumber: 36, ayahNumber: 10, text: 'وَسَوَاءٌ عَلَيْهِمْ أَأَنذَرْتَهُمْ أَمْ لَمْ تُنذِرْهُمْ لَا يُؤْمِنُونَ' },
+      { surahNumber: 36, ayahNumber: 11, text: 'إِنَّمَا تُنذِرُ مَنِ اتَّبَعَ الذِّكْرَ وَخَشِيَ الرَّحْمَٰنَ بِالْغَيْبِ ۖ فَبَشِّرْهُ بِمَغْفِرَةٍ وَأَجْرٍ كَرِيمٍ' },
+      { surahNumber: 36, ayahNumber: 12, text: 'إِنَّا نَحْنُ نُحْيِي الْمَوْتَىٰ وَنَكْتُبُ مَا قَدَّمُوا وَآثَارَهُمْ ۚ وَكُلَّ شَيْءٍ أَحْصَيْنَاهُ فِي إِمَامٍ مُّبِينٍ' },
+    ],
+  },
+  531: {
+    pageNumber: 531,
+    juz: 27,
+    hizb: 53,
+    surahName: 'سورة الرحمن',
+    ayahs: [
+      { surahNumber: 55, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الرَّحْمَٰنِ (عَرُوسُ الْقُرْآنِ)' },
+      { surahNumber: 55, ayahNumber: 1, text: 'الرَّحْمَٰنُ' },
+      { surahNumber: 55, ayahNumber: 2, text: 'عَلَّمَ الْقُرْآنَ' },
+      { surahNumber: 55, ayahNumber: 3, text: 'خَلَقَ الْإِنسَانَ' },
+      { surahNumber: 55, ayahNumber: 4, text: 'عَلَّمَهُ الْبَيَانَ' },
+      { surahNumber: 55, ayahNumber: 5, text: 'الشَّمْسُ وَالْقَمَرُ بِحُسْبَانٍ' },
+      { surahNumber: 55, ayahNumber: 6, text: 'وَالنَّجْمُ وَالشَّجَرُ يَسْجُدَانِ' },
+      { surahNumber: 55, ayahNumber: 7, text: 'وَالسَّمَاءَ رَفَعَهَا وَوَضَعَ الْمِيزَانَ' },
+      { surahNumber: 55, ayahNumber: 8, text: 'أَلَّا تَطْغَوْا فِي الْمِيزَانِ' },
+      { surahNumber: 55, ayahNumber: 9, text: 'وَأَقِيمُوا الْوَزْنَ بِالْقِسْطِ وَلَا تُخْسِرُوا الْمِيزَانَ' },
+      { surahNumber: 55, ayahNumber: 10, text: 'وَالْأَرْضَ وَضَعَهَا لِلْأَنَامِ' },
+      { surahNumber: 55, ayahNumber: 11, text: 'فِيهَا فَاكِهَةٌ وَالنَّخْلُ ذَاتُ الْأَكْمَامِ' },
+      { surahNumber: 55, ayahNumber: 12, text: 'وَالْحَبُّ ذُو الْعَصْفِ وَالرَّيْحَانُ' },
+      { surahNumber: 55, ayahNumber: 13, text: 'فَبِأَيِّ آلَاءِ رَبِّكُمَا تُكَذِّبَانِ' },
+    ],
+  },
+  534: {
+    pageNumber: 534,
+    juz: 27,
+    hizb: 54,
+    surahName: 'سورة الواقعة',
+    ayahs: [
+      { surahNumber: 56, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الْوَاقِعَةِ (مَكِّيَّةٌ)' },
+      { surahNumber: 56, ayahNumber: 1, text: 'إِذَا وَقَعَتِ الْوَاقِعَةُ' },
+      { surahNumber: 56, ayahNumber: 2, text: 'لَيْسَ لِوَقْعَتِهَا كَاذِبَةٌ' },
+      { surahNumber: 56, ayahNumber: 3, text: 'خَافِضَةٌ رَّافِعَةٌ' },
+      { surahNumber: 56, ayahNumber: 4, text: 'إِذَا رُجَّتِ الْأَرْضُ رَجّاً' },
+      { surahNumber: 56, ayahNumber: 5, text: 'وَبُسَّتِ الْجِبَالُ بَسّاً' },
+      { surahNumber: 56, ayahNumber: 6, text: 'فَكَانَتْ هَبَاءً مُّنبَثّاً' },
+      { surahNumber: 56, ayahNumber: 7, text: 'وَكُنتُمْ أَزْوَاجاً ثَلَاثَةً' },
+      { surahNumber: 56, ayahNumber: 8, text: 'فَأَصْحَابُ الْمَيْمَنَةِ مَا أَصْحَابُ الْمَيْمَنَةِ' },
+      { surahNumber: 56, ayahNumber: 9, text: 'وَأَصْحَابُ الْمَشْأَمَةِ مَا أَصْحَابُ الْمَشْأَمَةِ' },
+      { surahNumber: 56, ayahNumber: 10, text: 'وَالسَّابِقُونَ السَّابِقُونَ' },
+      { surahNumber: 56, ayahNumber: 11, text: 'أُولَٰئِكَ الْمُقَرَّبُونَ' },
+    ],
+  },
+  562: {
+    pageNumber: 562,
+    juz: 29,
+    hizb: 57,
+    surahName: 'سورة الملك (تبارك)',
+    ayahs: [
+      { surahNumber: 67, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الْمُلْكِ (الْمُنْجِيَةُ)' },
+      { surahNumber: 67, ayahNumber: 1, text: 'تَبَارَكَ الَّذِي بِيَدِهِ الْمُلْكُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ' },
+      { surahNumber: 67, ayahNumber: 2, text: 'الَّذِي خَلَقَ الْمَوْتَ وَالْحَيَاةَ لِيَبْلُوَكُمْ أَيُّكُمْ أَحْسَنُ عَمَلاً ۚ وَهُوَ الْعَزِيزُ الْغَفُورُ' },
+      { surahNumber: 67, ayahNumber: 3, text: 'الَّذِي خَلَقَ سَبْعَ سَمَاوَاتٍ طِبَاقاً ۖ مَّا تَرَىٰ فِي خَلْقِ الرَّحْمَٰنِ مِن تَفَاوُتٍ ۖ فَارْجِعِ الْبَصَرَ هَلْ تَرَىٰ مِن فُطُورٍ' },
+      { surahNumber: 67, ayahNumber: 4, text: 'ثُمَّ ارْجِعِ الْبَصَرَ كَرَّتَيْنِ يَنقَلِبْ إِلَيْكَ الْبَصَرُ خَاسِئاً وَهُوَ حَسِيرٌ' },
+      { surahNumber: 67, ayahNumber: 5, text: 'وَلَقَدْ زَيَّنَّا السَّمَاءَ الدُّنْيَا بِمَصَابِيحَ وَجَعَلْنَاهَا رُجُوماً لِّلشَّيَاطِينِ ۖ وَأَعْتَدْنَا لَهُمْ عَذَابَ السَّعِيرِ' },
+    ],
+  },
+  578: {
+    pageNumber: 578,
+    juz: 29,
+    hizb: 58,
+    surahName: 'سورة الإنسان (هل أتى - نزلت في أهل البيت ع)',
+    ayahs: [
+      { surahNumber: 76, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الْإِنسَانِ (مَدَنِيَّةٌ - نَزَلَتْ فِي أَهْلِ الْبَيْتِ ع)' },
+      { surahNumber: 76, ayahNumber: 1, text: 'هَلْ أَتَىٰ عَلَى الْإِنسَانِ حِينٌ مِّنَ الدَّهْرِ لَمْ يَكُن شَيْئاً مَّذْكُوراً' },
+      { surahNumber: 76, ayahNumber: 2, text: 'إِنَّا خَلَقْنَا الْإِنسَانَ مِن نُّطْفَةٍ أَمْشَاجٍ نَّبْتَلِيهِ فَجَعَلْنَاهُ سَمِيعاً بَصِيراً' },
+      { surahNumber: 76, ayahNumber: 3, text: 'إِنَّا هَدَيْنَاهُ السَّبِيلَ إِمَّا شَاكِراً وَإِمَّا كَفُوراً' },
+      { surahNumber: 76, ayahNumber: 4, text: 'إِنَّا أَعْتَدْنَا لِلْكَافِرِينَ سَلَاسِلَ وَأَغْلَالاً وَسَعِيراً' },
+      { surahNumber: 76, ayahNumber: 5, text: 'إِنَّ الْأَبْرَارَ يَشْرَبُونَ مِن كَأْسٍ كَانَ مِزَاجُهَا كَافُوراً' },
+      { surahNumber: 76, ayahNumber: 6, text: 'عَيْناً يَشْرَبُ بِهَا عِبَادُ اللَّهِ يُفَجِّرُونَهَا تَفْجِيراً' },
+      { surahNumber: 76, ayahNumber: 7, text: 'يُوفُونَ بِالنَّذْرِ وَيَخَافُونَ يَوْماً كَانَ شَرُّهُ مُسْتَطِيراً' },
+      { surahNumber: 76, ayahNumber: 8, text: 'وَيُطْعِمُونَ الطَّعَامَ عَلَىٰ حُبِّهِ مِسْكِيناً وَيَتِيماً وَأَسِيراً' },
+      { surahNumber: 76, ayahNumber: 9, text: 'إِنَّمَا نُطْعِمُكُمْ لِوَجْهِ اللَّهِ لَا نُرِيدُ مِنكُمْ جَزَاءً وَلَا شُكُوراً' },
+      { surahNumber: 76, ayahNumber: 10, text: 'إِنَّا نَخَافُ مِن رَّبِّنَا يَوْماً عَبُوساً قَمْطَرِيراً' },
+      { surahNumber: 76, ayahNumber: 11, text: 'فَوَقَاهُمُ اللَّهُ شَرَّ ذَٰلِكَ الْيَوْمِ وَلَقَّاهُمْ نَضْرَةً وَسُرُوراً' },
+      { surahNumber: 76, ayahNumber: 12, text: 'وَجَزَاهُم بِمَا صَبَرُوا جَنَّةً وَحَرِيراً' },
+    ],
+  },
+  596: {
+    pageNumber: 596,
+    juz: 30,
+    hizb: 59,
+    surahName: 'سورة الضحى وسورة الشرح',
+    ayahs: [
+      { surahNumber: 93, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الضُّحَىٰ (مَكِّيَّةٌ)' },
+      { surahNumber: 93, ayahNumber: 1, text: 'وَالضُّحَىٰ' },
+      { surahNumber: 93, ayahNumber: 2, text: 'وَاللَّيْلِ إِذَا سَجَىٰ' },
+      { surahNumber: 93, ayahNumber: 3, text: 'مَا وَدَّعَكَ رَبُّكَ وَمَا قَلَىٰ' },
+      { surahNumber: 93, ayahNumber: 4, text: 'وَلَلْآخِرَةُ خَيْرٌ لَّكَ مِنَ الْأُولَىٰ' },
+      { surahNumber: 93, ayahNumber: 5, text: 'وَلَسَوْفَ يُعْطِيكَ رَبُّكَ فَتَرْضَىٰ' },
+      { surahNumber: 94, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الشَّرْحِ (الِانْشِرَاحِ)' },
+      { surahNumber: 94, ayahNumber: 1, text: 'أَلَمْ نَشْرَحْ لَكَ صَدْرَكَ' },
+      { surahNumber: 94, ayahNumber: 2, text: 'وَوَضَعْنَا عَنكَ وِزْرَكَ' },
+      { surahNumber: 94, ayahNumber: 3, text: 'الَّذِي أَنقَضَ ظَهْرَكَ' },
+      { surahNumber: 94, ayahNumber: 4, text: 'وَرَفَعْنَا لَكَ ذِكْرَكَ' },
+      { surahNumber: 94, ayahNumber: 5, text: 'فَإِنَّ مَعَ الْعُسْرِ يُسْراً' },
+      { surahNumber: 94, ayahNumber: 6, text: 'إِنَّ مَعَ الْعُسْرِ يُسْراً' },
+      { surahNumber: 94, ayahNumber: 7, text: 'فَإِذَا فَرَغْتَ فَانصَبْ' },
+      { surahNumber: 94, ayahNumber: 8, text: 'وَإِلَىٰ رَبِّكَ فَارْغَب' },
+    ],
+  },
+  598: {
+    pageNumber: 598,
+    juz: 30,
+    hizb: 60,
+    surahName: 'سورة القدر',
+    ayahs: [
+      { surahNumber: 97, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الْقَدْرِ (مَكِّيَّةٌ)' },
+      { surahNumber: 97, ayahNumber: 1, text: 'إِنَّا أَنزَلْنَاهُ فِي لَيْلَةِ الْقَدْرِ' },
+      { surahNumber: 97, ayahNumber: 2, text: 'وَمَا أَدْرَاكَ مَا لَيْلَةُ الْقَدْرِ' },
+      { surahNumber: 97, ayahNumber: 3, text: 'لَيْلَةُ الْقَدْرِ خَيْرٌ مِّنْ أَلْفِ شَهْرٍ' },
+      { surahNumber: 97, ayahNumber: 4, text: 'تَنَزَّلُ الْمَلَائِكَةُ وَالرُّوحُ فِيهَا بِإِذْنِ رَبِّهِم مِّن كُلِّ أَمْرٍ' },
+      { surahNumber: 97, ayahNumber: 5, text: 'سَلَامٌ هِيَ حَتَّىٰ مَطْلَعِ الْفَجْرِ' },
+    ],
+  },
+  601: {
+    pageNumber: 601,
+    juz: 30,
+    hizb: 60,
+    surahName: 'سورة العصر والهمزة',
+    ayahs: [
+      { surahNumber: 103, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الْعَصْرِ (مَكِّيَّةٌ)' },
+      { surahNumber: 103, ayahNumber: 1, text: 'وَالْعَصْرِ' },
+      { surahNumber: 103, ayahNumber: 2, text: 'إِنَّ الْإِنسَانَ لَفِي خُسْرٍ' },
+      { surahNumber: 103, ayahNumber: 3, text: 'إِلَّا الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ وَتَوَاصَوْا بِالْحَقِّ وَتَوَاصَوْا بِالصَّبْرِ' },
+    ],
+  },
+  602: {
+    pageNumber: 602,
+    juz: 30,
+    hizb: 60,
+    surahName: 'سورة الكوثر والكافرون',
+    ayahs: [
+      { surahNumber: 108, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الْكَوْثَرِ (نَزَلَتْ فِي فَاطِمَةَ ع)' },
+      { surahNumber: 108, ayahNumber: 1, text: 'إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ' },
+      { surahNumber: 108, ayahNumber: 2, text: 'فَصَلِّ لِرَبِّكَ وَانْحَرْ' },
+      { surahNumber: 108, ayahNumber: 3, text: 'إِنَّ شَانِئَكَ هُوَ الْأَبْتَرُ' },
+    ],
+  },
+  604: {
+    pageNumber: 604,
+    juz: 30,
+    hizb: 60,
+    surahName: 'المعوذات وسورة الإخلاص',
+    ayahs: [
+      { surahNumber: 112, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الْإِخْلَاصِ (التَّوْحِيدِ)' },
+      { surahNumber: 112, ayahNumber: 1, text: 'قُلْ هُوَ اللَّهُ أَحَدٌ' },
+      { surahNumber: 112, ayahNumber: 2, text: 'اللَّهُ الصَّمَدُ' },
+      { surahNumber: 112, ayahNumber: 3, text: 'لَمْ يَلِدْ وَلَمْ يُولَدْ' },
+      { surahNumber: 112, ayahNumber: 4, text: 'وَلَمْ يَكُن لَّهُ كُفُواً أَحَدٌ' },
+      { surahNumber: 113, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ الْفَلَقِ' },
+      { surahNumber: 113, ayahNumber: 1, text: 'قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ' },
+      { surahNumber: 113, ayahNumber: 2, text: 'مِن شَرِّ مَا خَلَقَ' },
+      { surahNumber: 113, ayahNumber: 3, text: 'وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ' },
+      { surahNumber: 113, ayahNumber: 4, text: 'وَمِن شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ' },
+      { surahNumber: 113, ayahNumber: 5, text: 'وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ' },
+      { surahNumber: 114, ayahNumber: 0, text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', isBismillah: true, isSurahStart: true, surahTitle: 'سُورَةُ النَّاسِ' },
+      { surahNumber: 114, ayahNumber: 1, text: 'قُلْ أَعُوذُ بِرَبِّ النَّاسِ' },
+      { surahNumber: 114, ayahNumber: 2, text: 'مَلِكِ النَّاسِ' },
+      { surahNumber: 114, ayahNumber: 3, text: 'إِلَٰهِ النَّاسِ' },
+      { surahNumber: 114, ayahNumber: 4, text: 'مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ' },
+      { surahNumber: 114, ayahNumber: 5, text: 'الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ' },
+      { surahNumber: 114, ayahNumber: 6, text: 'مِنَ الْجِنَّةِ وَالنَّاسِ' },
+    ],
+  },
+};
