@@ -44,6 +44,7 @@ import { SmartAssistant } from './components/SmartAssistant';
 import { calculateShiaPrayerTimes, POPULAR_CITIES } from './utils/prayerTimes';
 import { getHijriDate, SHIA_OCCASIONS } from './data/calendarOccasions';
 import { getFavorites } from './utils/favoritesStorage';
+import { AudioProvider } from './context/AudioContext';
 
 export type AppTab =
   | 'home'
@@ -71,6 +72,8 @@ export default function App() {
   const [prayerRulingTargetId, setPrayerRulingTargetId] = useState<string | undefined>(undefined);
   const [quranTargetPage, setQuranTargetPage] = useState<number | undefined>(undefined);
   const [calendarTargetOccasionId, setCalendarTargetOccasionId] = useState<string | undefined>(undefined);
+  const [infalliblesTargetId, setInfalliblesTargetId] = useState<string | undefined>(undefined);
+  const [assistantInitialQuery, setAssistantInitialQuery] = useState<string | undefined>(undefined);
 
   // Quick summary info for home
   const today = new Date();
@@ -120,11 +123,17 @@ export default function App() {
         setCalendarTargetOccasionId(targetId);
       }
     }
+    if (tab === 'infallibles') {
+      if (targetId) {
+        setInfalliblesTargetId(targetId);
+      }
+    }
     setActiveTab(tab as AppTab);
   };
 
   return (
-    <div className="min-h-screen bg-[#08120e] text-[#f2eee3] bg-islamic-pattern flex flex-col font-tajawal selection:bg-[#d4af37]/30 selection:text-white" dir="rtl">
+    <AudioProvider>
+      <div className="min-h-screen bg-[#08120e] text-[#f2eee3] bg-islamic-pattern flex flex-col font-tajawal selection:bg-[#d4af37]/30 selection:text-white" dir="rtl">
       {/* Top Main Navigation Bar */}
       <header className="sticky top-0 z-50 bg-[#0a1813]/95 backdrop-blur-md border-b border-[#d4af37]/30 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -578,7 +587,16 @@ export default function App() {
         )}
         {activeTab === 'tasbeeh' && <TasbeehZahraView />}
         {activeTab === 'quran' && <QuranMushafView initialPageNumber={quranTargetPage} />}
-        {activeTab === 'infallibles' && <InfalliblesView />}
+        {activeTab === 'infallibles' && (
+          <InfalliblesView 
+            initialInfallibleId={infalliblesTargetId}
+            onNavigate={handleUniversalNavigate}
+            onAskAssistant={(query) => {
+              setAssistantInitialQuery(query);
+              setIsAssistantOpen(true);
+            }}
+          />
+        )}
         {activeTab === 'library' && <LibraryDuasView />}
         {activeTab === 'favorites' && (
           <FavoritesView onNavigate={handleUniversalNavigate} />
@@ -592,6 +610,7 @@ export default function App() {
             isOpen={true}
             onClose={() => setActiveTab('home')}
             onNavigate={handleUniversalNavigate}
+            initialQuery={assistantInitialQuery}
           />
         )}
       </main>
@@ -618,6 +637,7 @@ export default function App() {
         isOpen={isAssistantOpen}
         onClose={() => setIsAssistantOpen(false)}
         onNavigate={handleUniversalNavigate}
+        initialQuery={assistantInitialQuery}
       />
 
       {/* Floating Bottom Quick Tab Bar for Mobile / Android */}
@@ -685,5 +705,6 @@ export default function App() {
         </div>
       </footer>
     </div>
+    </AudioProvider>
   );
 }

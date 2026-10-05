@@ -39,6 +39,7 @@ interface SmartAssistantProps {
   onClose: () => void;
   onNavigate: (tab: string, targetId?: string) => void;
   isFullPage?: boolean;
+  initialQuery?: string;
 }
 
 const SAMPLE_QUESTIONS = [
@@ -60,7 +61,8 @@ export const SmartAssistant: React.FC<SmartAssistantProps> = ({
   isOpen,
   onClose,
   onNavigate,
-  isFullPage = false
+  isFullPage = false,
+  initialQuery
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -96,6 +98,12 @@ export const SmartAssistant: React.FC<SmartAssistantProps> = ({
       }
     }
   }, [messages, isOpen]);
+
+  useEffect(() => {
+    if (isOpen && initialQuery && initialQuery.trim()) {
+      handleSendMessage(initialQuery);
+    }
+  }, [isOpen, initialQuery]);
 
   const handleSendMessage = (textToSend?: string) => {
     const text = (textToSend || inputText).trim();

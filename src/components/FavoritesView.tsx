@@ -46,6 +46,7 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({ onNavigate }) => {
       <div className="flex gap-1.5 overflow-x-auto py-1 no-scrollbar text-xs">
         {[
           { id: 'all', label: 'الكل' },
+          { id: 'infallible', label: 'سيرة أهل البيت' },
           { id: 'occasion', label: 'المناسبات' },
           { id: 'mafatih', label: 'مفاتيح الجنان' },
           { id: 'dua', label: 'الأدعية' },

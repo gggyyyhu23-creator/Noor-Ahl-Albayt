@@ -15,7 +15,8 @@ export interface AyahSearchResult {
  */
 export function normalizeArabicText(text: string): string {
   return text
-    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, '') // Harakat & Quranic symbols
+    .replace(/[\u0670]/g, 'ا') // Convert Quranic dagger alef to standard alef
+    .replace(/[\u064B-\u065F\u06D6-\u06ED]/g, '') // Harakat & Quranic symbols
     .replace(/[إأآاٱ]/g, 'ا')
     .replace(/ى/g, 'ي')
     .replace(/ة/g, 'ه')
@@ -44,13 +45,30 @@ export async function loadCompleteQuranForSearch(): Promise<{ number: number; na
 
   isLoadingCompleteQuran = true;
   try {
-    const res = await fetch('/data/quran/quranComplete.json');
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length === 114) {
-        completeQuranCache = data;
-        return completeQuranCache;
+    let data: any = null;
+    if (typeof window === 'undefined') {
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const filePath = path.resolve(process.cwd(), 'public/data/quran/quranComplete.json');
+        if (fs.existsSync(filePath)) {
+          data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        }
+      } catch (e) {
+        // ignore
       }
+    }
+
+    if (!data) {
+      const res = await fetch('/data/quran/quranComplete.json');
+      if (res.ok) {
+        data = await res.json();
+      }
+    }
+
+    if (Array.isArray(data) && data.length === 114) {
+      completeQuranCache = data;
+      return completeQuranCache;
     }
   } catch (err) {
     console.warn('Could not fetch complete Quran dataset from local static assets:', err);

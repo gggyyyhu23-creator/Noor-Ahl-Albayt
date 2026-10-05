@@ -608,10 +608,15 @@ export function unifiedSearch(rawQuery: string, maxResults = 15): UnifiedSearchR
   // 8. سيرة وقصص أهل البيت (ع)
   // =========================================================================
   INFALLIBLES_LIST.forEach((inf) => {
-    const combinedContent = `${inf.name} ${inf.title} ${inf.honorific} ${inf.bio} ${inf.role} ${inf.famousQuotes.map(q => q.text).join(' ')}`;
-    const score = calculateMatchScore(inf.name, combinedContent, [inf.name, inf.title, inf.honorific]);
+    const infNormalized = normalizeArabicText(`${inf.name} ${inf.title} ${inf.kunya} ${inf.honorific} ${inf.role} ${inf.father} ${inf.mother} ${inf.shrine}`);
+    const combinedContent = `${inf.name} ${inf.title} ${inf.kunya} ${inf.honorific} ${inf.bio} ${inf.role} ${inf.famousQuotes.map(q => q.text).join(' ')}`;
+    let score = calculateMatchScore(inf.name, combinedContent, [inf.name, inf.title, inf.kunya, inf.honorific, inf.role]);
 
-    if (score >= 35) {
+    if (qNorm && (infNormalized.includes(qNorm) || qNorm.includes(normalizeArabicText(inf.name)))) {
+      score = Math.max(score, 220);
+    }
+
+    if (score >= 25) {
       addResult({
         id: `inf-${inf.id}`,
         category: 'infallibles',
@@ -833,6 +838,24 @@ export function generateSmartAssistantResponse(rawInput: string): {
   } else if (qNorm.includes('الجوشن') || qNorm.includes('الغوث')) {
     replyText = 'دعاء الجوشن الكبير الشريف مروي عن النبي (ص) في مائة فصل جامع لأسماء الله الحسنى، يُستحب قراءته بالأخص في ليالي القدر المباركة. يمكنك تصفح الفصول المائة كاملة:';
     followUpSuggestions = ['أعمال ليلة القدر', 'دعاء التوسل', 'دعاء أبي حمزة'];
+  } else if (
+    INFALLIBLES_LIST.some((inf) => {
+      const nameN = normalizeArabicText(inf.name);
+      return qNorm.includes(nameN) || (inf.kunya && qNorm.includes(normalizeArabicText(inf.kunya)));
+    }) &&
+    (qNorm.includes('سيره') || qNorm.includes('سيرة') || qNorm.includes('حدثني') || qNorm.includes('من هو') || qNorm.includes('محطات') || qNorm.includes('نبذه') || qNorm.includes('نبذة') || qNorm.includes('شخصيه') || qNorm.includes('شخصية'))
+  ) {
+    const matchedInf = INFALLIBLES_LIST.find((inf) => {
+      const nameN = normalizeArabicText(inf.name);
+      return qNorm.includes(nameN) || (inf.kunya && qNorm.includes(normalizeArabicText(inf.kunya)));
+    })!;
+    replyText = `أهلاً بك. ${matchedInf.name} (${matchedInf.honorific}): ${matchedInf.role}، كنيته الشريفة «${matchedInf.kunya}»، وألقابه «${matchedInf.title}». وُلد في ${matchedInf.birthDate} في ${matchedInf.birthPlace}، واستُشهد/تُوفي في ${matchedInf.deathDate} في ${matchedInf.deathPlace}، ومرقده الشريف في ${matchedInf.shrine}.\n\nنبذة من السيرة الموثقة: ${matchedInf.bio}\n\nيمكنك الانتقال فوراً إلى صفحته في قسم سيرة المعصومين لاستعراض الخط الزمني لأهم محطات حياته ودرر أقواله الموثقة والروابط بمفاتيح الجنان والتقويم:`;
+    followUpSuggestions = [
+      `زيارة ${matchedInf.name}`,
+      `أقوال ${matchedInf.name}`,
+      'سيرة أهل البيت (ع)',
+      'التقويم والمناسبات'
+    ];
   } else if (results.length > 0) {
     const topResult = results[0];
     replyText = `بحثتُ لك في بيانات التطبيق الموثقة، وعثرتُ على «${topResult.title}» في قسم (${topResult.categoryLabel}). إليك أبرز النتائج ذات الصلة بسؤالك مع إمكانية فتحها مباشرة:`;

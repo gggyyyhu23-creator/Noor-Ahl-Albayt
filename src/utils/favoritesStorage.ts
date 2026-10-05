@@ -1,6 +1,6 @@
 export interface FavoriteItem {
   id: string;
-  type: 'dua' | 'ziyarat' | 'work' | 'occasion' | 'story' | 'mafatih' | 'quran';
+  type: 'dua' | 'ziyarat' | 'work' | 'occasion' | 'story' | 'mafatih' | 'quran' | 'infallible';
   title: string;
   subtitle: string;
   snippet?: string;
