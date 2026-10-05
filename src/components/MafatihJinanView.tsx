@@ -31,6 +31,7 @@ import { MAFATIH_AUDIO_TRACKS, getTracksForItem, MafatihAudioTrack } from '../da
 import { isFavorite, toggleFavorite, saveLastReadPosition, getLastReadPosition } from '../utils/favoritesStorage';
 import { searchMatches, getSearchSnippet } from '../utils/textSearch';
 import { downloadMediaAudio, getCachedAudioUrl, isAudioDownloaded, formatBytes } from '../utils/audioStorage';
+import { useAudioEngine } from '../context/AudioContext';
 
 interface MafatihJinanViewProps {
   initialItemId?: string;
@@ -48,18 +49,25 @@ export const MafatihJinanView: React.FC<MafatihJinanViewProps> = ({ initialItemI
   const [copied, setCopied] = useState<boolean>(false);
   const [favUpdated, setFavUpdated] = useState<number>(0);
 
-  // Audio player state
-  const [currentTrack, setCurrentTrack] = useState<MafatihAudioTrack | null>(null);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [audioProgress, setAudioProgress] = useState<number>(0); // 0 to 100
-  const [currentTimeSec, setCurrentTimeSec] = useState<number>(0);
-  const [durationSec, setDurationSec] = useState<number>(0);
-  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  // Central Audio Engine Integration
+  const {
+    currentTrack: engineTrack,
+    isPlaying: isEnginePlaying,
+    currentTime: engineCurrentTime,
+    duration: engineDuration,
+    progress: engineProgress,
+    playbackSpeed: engineSpeed,
+    playMafatihTrack,
+    togglePlay,
+    seekPercent,
+    seekRelative,
+    setPlaybackSpeed,
+  } = useAudioEngine();
+
+  const [selectedTrack, setSelectedTrack] = useState<MafatihAudioTrack | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<{ [trackId: string]: number }>({});
   const [downloadingMap, setDownloadingMap] = useState<{ [trackId: string]: boolean }>({});
   const [downloadVersion, setDownloadVersion] = useState<number>(0);
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // If initialItemId changes from parent (e.g. from Calendar click)
   useEffect(() => {
@@ -78,20 +86,23 @@ export const MafatihJinanView: React.FC<MafatihJinanViewProps> = ({ initialItemI
   // Available audio tracks for current section
   const availableTracks = getTracksForItem(currentItem.id);
 
-  // Auto-select first track when item changes if no audio currently playing
+  // Auto-select track when item changes or sync with engine if currently playing
   useEffect(() => {
     if (availableTracks.length > 0) {
-      if (!currentTrack || currentTrack.itemId !== currentItem.id) {
-        if (!isPlaying) {
-          setCurrentTrack(availableTracks[0]);
+      if (engineTrack && engineTrack.type === 'mafatih') {
+        const found = availableTracks.find((t) => t.id === engineTrack.id);
+        if (found) {
+          setSelectedTrack(found);
+          return;
         }
       }
-    } else {
-      if (!isPlaying) {
-        setCurrentTrack(null);
+      if (!selectedTrack || selectedTrack.itemId !== currentItem.id) {
+        setSelectedTrack(availableTracks[0]);
       }
+    } else {
+      setSelectedTrack(null);
     }
-  }, [currentItem.id, availableTracks, isPlaying]);
+  }, [currentItem.id, availableTracks, engineTrack]);
 
   // Save last read position automatically
   useEffect(() => {
@@ -118,91 +129,44 @@ export const MafatihJinanView: React.FC<MafatihJinanViewProps> = ({ initialItemI
     return matchesCategory && matchesSearch;
   });
 
-  // Audio Playback Engine
+  const activeSelectedTrack = selectedTrack || (availableTracks.length > 0 ? availableTracks[0] : null);
+  const isThisTrackActiveInEngine = engineTrack?.id === activeSelectedTrack?.id;
+  const isPlayingThisTrack = isEnginePlaying && isThisTrackActiveInEngine;
+  const displayProgress = isThisTrackActiveInEngine ? engineProgress : 0;
+  const displayCurrentTime = isThisTrackActiveInEngine ? engineCurrentTime : 0;
+
+  // Audio Playback via Central Audio Engine
   const handlePlayPause = async (trackToPlay?: MafatihAudioTrack) => {
-    const track = trackToPlay || currentTrack || availableTracks[0];
+    const track = trackToPlay || activeSelectedTrack;
     if (!track) return;
 
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
-    }
-
-    const audio = audioRef.current;
-
-    // If same track and playing -> pause
-    if (isPlaying && currentTrack?.id === track.id) {
-      audio.pause();
-      setIsPlaying(false);
+    if (engineTrack?.id === track.id) {
+      togglePlay();
       return;
     }
 
-    // Set new track or resume
-    setCurrentTrack(track);
-
-    // Check if downloaded offline
-    let srcUrl = await getCachedAudioUrl(track.id);
-    if (!srcUrl) {
-      srcUrl = track.audioUrl;
-    }
-
-    audio.src = srcUrl;
-    audio.playbackRate = playbackSpeed;
-
-    audio.ontimeupdate = () => {
-      if (audio.duration && !isNaN(audio.duration)) {
-        setCurrentTimeSec(audio.currentTime);
-        setDurationSec(audio.duration);
-        setAudioProgress((audio.currentTime / audio.duration) * 100);
-      } else {
-        // Fallback approximation
-        setCurrentTimeSec(audio.currentTime);
-        setDurationSec(track.approxDurationSec);
-        setAudioProgress(Math.min(100, (audio.currentTime / track.approxDurationSec) * 100));
-      }
-    };
-
-    audio.onended = () => {
-      setIsPlaying(false);
-      setAudioProgress(0);
-      setCurrentTimeSec(0);
-    };
-
-    audio.onerror = () => {
-      console.warn('Direct stream error, playing offline synthesized voice preview');
-      setIsPlaying(false);
-    };
-
-    try {
-      await audio.play();
-      setIsPlaying(true);
-    } catch (e) {
-      console.warn('Playback error', e);
-      setIsPlaying(false);
-    }
+    setSelectedTrack(track);
+    await playMafatihTrack({
+      id: track.id,
+      title: track.title,
+      reciterName: track.reciterName,
+      audioUrl: track.audioUrl,
+      approxDurationSec: track.approxDurationSec,
+    });
   };
 
   const handleSeek = (percent: number) => {
-    if (audioRef.current && (audioRef.current.duration || currentTrack?.approxDurationSec)) {
-      const dur = audioRef.current.duration || currentTrack!.approxDurationSec;
-      audioRef.current.currentTime = (percent / 100) * dur;
-      setAudioProgress(percent);
-    }
+    seekPercent(percent);
   };
 
   const handleSkip = (seconds: number) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime + seconds);
-    }
+    seekRelative(seconds);
   };
 
   const handleSpeedToggle = () => {
     const speeds = [1, 1.25, 1.5];
-    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
-    const nextSpeed = speeds[nextIdx];
-    setPlaybackSpeed(nextSpeed);
-    if (audioRef.current) {
-      audioRef.current.playbackRate = nextSpeed;
-    }
+    const nextIdx = (speeds.indexOf(engineSpeed) + 1) % speeds.length;
+    setPlaybackSpeed(speeds[nextIdx]);
   };
 
   // Download track for offline listening
@@ -437,7 +401,7 @@ export const MafatihJinanView: React.FC<MafatihJinanViewProps> = ({ initialItemI
 
                 {/* Reciter selector */}
                 <select
-                  value={currentTrack?.id || availableTracks[0].id}
+                  value={activeSelectedTrack?.id || availableTracks[0].id}
                   onChange={(e) => {
                     const tr = availableTracks.find((t) => t.id === e.target.value);
                     if (tr) {
@@ -455,7 +419,7 @@ export const MafatihJinanView: React.FC<MafatihJinanViewProps> = ({ initialItemI
               </div>
 
               {/* Main Player Controls Bar */}
-              {currentTrack && (
+              {activeSelectedTrack && (
                 <div className="rounded-xl bg-[#0a1813] p-3 border border-[#234d3d] flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2 sm:gap-3">
                     {/* -10s button */}
@@ -471,9 +435,9 @@ export const MafatihJinanView: React.FC<MafatihJinanViewProps> = ({ initialItemI
                     <button
                       onClick={() => handlePlayPause()}
                       className="w-10 h-10 rounded-full bg-[#d4af37] text-[#0b1311] hover:bg-[#e4be46] flex items-center justify-center shadow-lg transition-transform active:scale-95"
-                      title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل الاستماع'}
+                      title={isPlayingThisTrack ? 'إيقاف مؤقت' : 'تشغيل الاستماع'}
                     >
-                      {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current mr-0.5" />}
+                      {isPlayingThisTrack ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current mr-0.5" />}
                     </button>
 
                     {/* +10s button */}
@@ -486,9 +450,9 @@ export const MafatihJinanView: React.FC<MafatihJinanViewProps> = ({ initialItemI
                     </button>
 
                     <div className="text-xs">
-                      <div className="font-bold text-white">{currentTrack.reciterName}</div>
+                      <div className="font-bold text-white">{activeSelectedTrack.reciterName}</div>
                       <div className="text-[10px] text-[#8fa79c] font-mono">
-                        {formatTime(currentTimeSec)} / {currentTrack.durationLabel}
+                        {formatTime(displayCurrentTime)} / {activeSelectedTrack.durationLabel}
                       </div>
                     </div>
                   </div>
@@ -499,7 +463,7 @@ export const MafatihJinanView: React.FC<MafatihJinanViewProps> = ({ initialItemI
                       type="range"
                       min={0}
                       max={100}
-                      value={audioProgress}
+                      value={displayProgress}
                       onChange={(e) => handleSeek(parseFloat(e.target.value))}
                       className="w-full h-1.5 bg-[#1b3d30] rounded-lg appearance-none cursor-pointer accent-[#d4af37]"
                     />
@@ -512,22 +476,22 @@ export const MafatihJinanView: React.FC<MafatihJinanViewProps> = ({ initialItemI
                       className="px-2 py-1 rounded-lg bg-[#142e23] hover:bg-[#1e4535] text-white text-[11px] font-mono font-bold border border-[#234d3d]"
                       title="سرعة التشغيل"
                     >
-                      {playbackSpeed}x
+                      {engineSpeed}x
                     </button>
 
                     {/* Download offline button */}
-                    {isAudioDownloaded(currentTrack.id) ? (
+                    {isAudioDownloaded(activeSelectedTrack.id) ? (
                       <span className="text-[11px] px-2.5 py-1 rounded-lg bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1 font-medium">
                         <Check className="w-3 h-3" /> بدون إنترنت
                       </span>
-                    ) : downloadingMap[currentTrack.id] ? (
+                    ) : downloadingMap[activeSelectedTrack.id] ? (
                       <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#142e23] border border-[#d4af37] text-[11px] text-[#d4af37]">
                         <Loader2 className="w-3 h-3 animate-spin" />
-                        <span>{downloadProgress[currentTrack.id] || 0}%</span>
+                        <span>{downloadProgress[activeSelectedTrack.id] || 0}%</span>
                       </div>
                     ) : (
                       <button
-                        onClick={() => handleDownloadTrack(currentTrack)}
+                        onClick={() => handleDownloadTrack(activeSelectedTrack)}
                         className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#16382b] hover:bg-[#1e4c3b] text-white border border-[#2b5947] text-[11px] font-semibold transition-all"
                         title="تنزيل الملف الصوتي للاستماع بدون اتصال بالإنترنت"
                       >

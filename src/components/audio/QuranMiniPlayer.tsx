@@ -8,7 +8,9 @@ import {
   BookOpen, 
   Layers,
   Volume2,
-  Loader2
+  Loader2,
+  SkipBack,
+  SkipForward
 } from 'lucide-react';
 import { useAudioEngine } from '../../context/AudioContext';
 import { QuranAudioTrack } from '../../types/audioEngine';
@@ -40,15 +42,20 @@ export const QuranMiniPlayer: React.FC<QuranMiniPlayerProps> = ({
     seekRelative,
     seekPercent,
     setIsFullPlayerOpen,
+    playNextQuranSurah,
+    playPreviousQuranSurah,
+    hasNextQuranSurah,
+    hasPreviousQuranSurah,
     quranState,
   } = useAudioEngine();
 
-  // Only render if a Quran track is active or initialized
-  if (!currentTrack || currentTrack.type !== 'quran') {
+  // If no track is loaded, don't show the player
+  if (!currentTrack) {
     return null;
   }
 
-  const qTrack = currentTrack as QuranAudioTrack;
+  const isQuran = currentTrack.type === 'quran';
+  const qTrack = isQuran ? (currentTrack as QuranAudioTrack) : null;
 
   const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -60,7 +67,7 @@ export const QuranMiniPlayer: React.FC<QuranMiniPlayerProps> = ({
 
   return (
     <aside 
-      aria-label="مشغل القرآن الصوتي"
+      aria-label="مشغل الصوت المركزي"
       className="sticky bottom-14 xl:bottom-3 z-30 mx-auto max-w-5xl px-2 sm:px-4"
     >
       <div className="rounded-2xl bg-[#0c1f19]/95 backdrop-blur-md border-2 border-[#d4af37]/60 p-2.5 sm:p-3 shadow-2xl flex flex-col gap-2 transition-all">
@@ -80,8 +87,10 @@ export const QuranMiniPlayer: React.FC<QuranMiniPlayerProps> = ({
         <div className="flex items-center justify-between gap-2 text-xs">
           {/* Track Info */}
           <div 
-            onClick={() => setIsFullPlayerOpen(true)}
-            className="flex items-center gap-2.5 cursor-pointer hover:opacity-90 transition-opacity min-w-0 flex-1"
+            onClick={() => {
+              if (isQuran) setIsFullPlayerOpen(true);
+            }}
+            className={`flex items-center gap-2.5 min-w-0 flex-1 ${isQuran ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
           >
             <div className="w-8 h-8 rounded-lg bg-[#143126] border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37] shrink-0">
               <Volume2 className="w-4 h-4" />
@@ -90,16 +99,21 @@ export const QuranMiniPlayer: React.FC<QuranMiniPlayerProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <h4 className="font-quran text-sm font-bold text-[#f7ecd6] truncate">
-                  {qTrack.title}
+                  {currentTrack.title}
                 </h4>
-                {quranState?.currentAyahNumber && (
+                {isQuran && quranState?.currentAyahNumber && (
                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#16382b] text-[#d4af37] border border-[#275947] shrink-0">
                     الآية {quranState.currentAyahNumber}
                   </span>
                 )}
+                {!isQuran && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#16382b] text-emerald-300 border border-[#275947] shrink-0">
+                    مفاتيح الجنان
+                  </span>
+                )}
               </div>
               <span className="text-[11px] text-[#9fc0b3] truncate block">
-                {qTrack.subtitle}
+                {currentTrack.subtitle}
               </span>
             </div>
           </div>
@@ -109,8 +123,23 @@ export const QuranMiniPlayer: React.FC<QuranMiniPlayerProps> = ({
             <span>{formatTime(currentTime)}</span> / <span>{formatTime(duration)}</span>
           </div>
 
-          {/* Quick Buttons: -10s, Play/Pause, +10s */}
+          {/* Quick Controls: Previous Surah (if Quran), -10s, Play/Pause, +10s, Next Surah (if Quran) */}
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            {isQuran && (
+              <button
+                onClick={playPreviousQuranSurah}
+                disabled={!hasPreviousQuranSurah}
+                className={`hidden md:flex p-1.5 rounded-lg border transition-all ${
+                  hasPreviousQuranSurah
+                    ? 'bg-[#122a21] text-[#cbdad3] hover:text-[#d4af37] border-[#234d3d]'
+                    : 'bg-[#0f1f19] text-[#4a6358] border-transparent opacity-30 cursor-not-allowed'
+                }`}
+                title={hasPreviousQuranSurah ? 'السورة السابقة' : 'لا توجد سورة سابقة'}
+              >
+                <SkipBack className="w-3.5 h-3.5" />
+              </button>
+            )}
+
             <button
               onClick={() => seekRelative(-10)}
               className="p-1.5 rounded-lg bg-[#122a21] text-[#cbdad3] hover:text-white border border-[#234d3d] hover:border-[#d4af37] active:scale-95 transition-all"
@@ -140,38 +169,55 @@ export const QuranMiniPlayer: React.FC<QuranMiniPlayerProps> = ({
             >
               <RotateCw className="w-3.5 h-3.5" />
             </button>
+
+            {isQuran && (
+              <button
+                onClick={playNextQuranSurah}
+                disabled={!hasNextQuranSurah}
+                className={`hidden md:flex p-1.5 rounded-lg border transition-all ${
+                  hasNextQuranSurah
+                    ? 'bg-[#122a21] text-[#cbdad3] hover:text-[#d4af37] border-[#234d3d]'
+                    : 'bg-[#0f1f19] text-[#4a6358] border-transparent opacity-30 cursor-not-allowed'
+                }`}
+                title={hasNextQuranSurah ? 'السورة التالية' : 'لا توجد سورة تالية'}
+              >
+                <SkipForward className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          {/* View Mode Toggle Pill & Expand Button */}
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={() =>
-                onSwitchReadingMode(activeReadingMode === 'mushaf' ? 'text' : 'mushaf')
-              }
-              className="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#143226] hover:bg-[#1a4234] border border-[#275947] text-[11px] font-bold text-[#d4af37] transition-all"
-              title="التبديل بين وضع المصحف والوضع النصي مع استمرار الصوت"
-            >
-              {activeReadingMode === 'mushaf' ? (
-                <>
-                  <BookOpen className="w-3 h-3 text-[#d4af37]" />
-                  <span>الوضع النصي</span>
-                </>
-              ) : (
-                <>
-                  <Layers className="w-3 h-3 text-[#d4af37]" />
-                  <span>صفحات المصحف</span>
-                </>
-              )}
-            </button>
+          {/* If Quran: View Mode Toggle Pill & Expand Button */}
+          {isQuran && (
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() =>
+                  onSwitchReadingMode(activeReadingMode === 'mushaf' ? 'text' : 'mushaf')
+                }
+                className="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#143226] hover:bg-[#1a4234] border border-[#275947] text-[11px] font-bold text-[#d4af37] transition-all"
+                title="التبديل بين وضع المصحف والوضع النصي مع استمرار الصوت"
+              >
+                {activeReadingMode === 'mushaf' ? (
+                  <>
+                    <BookOpen className="w-3 h-3 text-[#d4af37]" />
+                    <span>الوضع النصي</span>
+                  </>
+                ) : (
+                  <>
+                    <Layers className="w-3 h-3 text-[#d4af37]" />
+                    <span>صفحات المصحف</span>
+                  </>
+                )}
+              </button>
 
-            <button
-              onClick={() => setIsFullPlayerOpen(true)}
-              className="p-1.5 sm:p-2 rounded-lg bg-[#122a21] text-[#d4af37] hover:bg-[#1a3d30] border border-[#234d3d] active:scale-95 transition-all"
-              title="فتح المشغل الكامل للقرآن"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
+              <button
+                onClick={() => setIsFullPlayerOpen(true)}
+                className="p-1.5 sm:p-2 rounded-lg bg-[#122a21] text-[#d4af37] hover:bg-[#1a3d30] border border-[#234d3d] active:scale-95 transition-all"
+                title="فتح المشغل الكامل للقرآن"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </aside>

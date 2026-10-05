@@ -33,6 +33,7 @@ import {
 import { OccasionItem } from '../types';
 import { isFavorite, toggleFavorite } from '../utils/favoritesStorage';
 import { getTracksForItem, MafatihAudioTrack } from '../data/mafatihAudioData';
+import { useAudioEngine } from '../context/AudioContext';
 import { 
   isOccasionNotificationSupported, 
   isOccasionReminderEnabled, 
@@ -81,10 +82,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     setActiveWeekDayTab(currentDate.getDay());
   }, [currentDate]);
 
-  // Audio playback state
-  const [activeAudioTrack, setActiveAudioTrack] = useState<MafatihAudioTrack | null>(null);
-  const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Central Audio Engine Integration
+  const {
+    currentTrack: engineTrack,
+    isPlaying: isEnginePlaying,
+    playMafatihTrack,
+    togglePlay,
+    pause,
+  } = useAudioEngine();
 
   // Notifications reminder state
   const [isReminderActive, setIsReminderActive] = useState<boolean>(() => isOccasionReminderEnabled());
@@ -106,35 +111,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
   }, [initialOccasionId]);
 
-  // Handle audio stop on modal close or unmount
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    };
-  }, []);
-
-  const handleToggleAudio = (track: MafatihAudioTrack) => {
-    if (activeAudioTrack?.id === track.id) {
-      if (isPlayingAudio) {
-        audioRef.current?.pause();
-        setIsPlayingAudio(false);
-      } else {
-        audioRef.current?.play();
-        setIsPlayingAudio(true);
-      }
-    } else {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      setActiveAudioTrack(track);
-      setIsPlayingAudio(true);
-      const audio = new Audio(track.audioUrl);
-      audioRef.current = audio;
-      audio.play().catch(() => setIsPlayingAudio(false));
-      audio.onended = () => setIsPlayingAudio(false);
+  const handleToggleAudio = async (track: MafatihAudioTrack) => {
+    if (engineTrack?.id === track.id) {
+      togglePlay();
+      return;
     }
+    await playMafatihTrack({
+      id: track.id,
+      title: track.title,
+      reciterName: track.reciterName,
+      audioUrl: track.audioUrl,
+      approxDurationSec: track.approxDurationSec,
+    });
   };
 
   const handlePrevMonth = () => {
@@ -1116,8 +1104,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
           onClick={() => {
             setSelectedOccasion(null);
-            if (audioRef.current) audioRef.current.pause();
-            setIsPlayingAudio(false);
+            pause();
           }}
         >
           <div 
@@ -1166,8 +1153,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 <button
                   onClick={() => {
                     setSelectedOccasion(null);
-                    if (audioRef.current) audioRef.current.pause();
-                    setIsPlayingAudio(false);
+                    pause();
                   }}
                   className="p-2 rounded-xl bg-[#143126] text-[#a2beb3] hover:text-white hover:bg-[#1f4a3a] border border-[#275342] transition-colors"
                   title="إغلاق"
@@ -1266,7 +1252,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   </h4>
                   <div className="space-y-2">
                     {modalAudioTracks.map((track) => {
-                      const isThisPlaying = activeAudioTrack?.id === track.id && isPlayingAudio;
+                      const isThisPlaying = engineTrack?.id === track.id && isEnginePlaying;
                       return (
                         <div
                           key={track.id}
@@ -1320,8 +1306,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               <button
                 onClick={() => {
                   setSelectedOccasion(null);
-                  if (audioRef.current) audioRef.current.pause();
-                  setIsPlayingAudio(false);
+                  pause();
                 }}
                 className="px-4 py-2 rounded-xl bg-[#143226] text-white text-xs font-bold hover:bg-[#1a3f32] transition-colors"
               >
@@ -1333,8 +1318,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   onClick={() => {
                     const mId = selectedOccasion.mafatihId!;
                     setSelectedOccasion(null);
-                    if (audioRef.current) audioRef.current.pause();
-                    setIsPlayingAudio(false);
+                    pause();
                     onGoToMafatih(mId);
                   }}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#d4af37] to-amber-500 text-[#0b1311] font-bold text-xs hover:scale-105 transition-all shadow-lg active:scale-95"

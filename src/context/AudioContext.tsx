@@ -12,6 +12,14 @@ import { ALL_114_SURAHS } from '../data/quranSurahsAll';
 import { getLastSelectedReciter, saveLastSelectedReciter } from '../utils/quranContinueReading';
 import { getMushafPageForAyah } from '../utils/quranPageMapping';
 
+export interface MafatihTrackInput {
+  id: string;
+  title: string;
+  reciterName: string;
+  audioUrl: string;
+  approxDurationSec?: number;
+}
+
 interface AudioContextValue extends AudioEngineState {
   play: (track: AnyAudioTrack, options?: { startTimeSec?: number }) => Promise<void>;
   pause: () => void;
@@ -29,6 +37,11 @@ interface AudioContextValue extends AudioEngineState {
     reciterId?: string,
     options?: { startAyah?: number; startPage?: number; startTimeSec?: number }
   ) => Promise<void>;
+  playNextQuranSurah: () => Promise<boolean>;
+  playPreviousQuranSurah: () => Promise<boolean>;
+  hasNextQuranSurah: boolean;
+  hasPreviousQuranSurah: boolean;
+  playMafatihTrack: (track: MafatihTrackInput, options?: { startTimeSec?: number }) => Promise<void>;
   isFullPlayerOpen: boolean;
   setIsFullPlayerOpen: (open: boolean) => void;
 }
@@ -98,6 +111,38 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await play(quranTrack, { startTimeSec: options?.startTimeSec });
   };
 
+  const playNextQuranSurah = async () => {
+    return centralAudioEngine.playNextQuranSurah();
+  };
+
+  const playPreviousQuranSurah = async () => {
+    return centralAudioEngine.playPreviousQuranSurah();
+  };
+
+  const curSurah =
+    engineState.quranState?.surahNumber ||
+    (engineState.currentTrack?.type === 'quran'
+      ? (engineState.currentTrack as QuranAudioTrack).surahNumber
+      : null);
+
+  const hasNextQuranSurah = curSurah !== null ? curSurah < 114 : false;
+  const hasPreviousQuranSurah = curSurah !== null ? curSurah > 1 : false;
+
+  const playMafatihTrack = async (
+    track: MafatihTrackInput,
+    options?: { startTimeSec?: number }
+  ) => {
+    const audioEngineTrack: AnyAudioTrack = {
+      id: track.id,
+      type: 'mafatih',
+      title: track.title,
+      subtitle: track.reciterName,
+      audioUrl: track.audioUrl,
+      approxDurationSec: track.approxDurationSec,
+    };
+    await play(audioEngineTrack, options);
+  };
+
   const value: AudioContextValue = {
     ...engineState,
     play,
@@ -112,6 +157,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stop,
     updateQuranState,
     playQuranSurah,
+    playNextQuranSurah,
+    playPreviousQuranSurah,
+    hasNextQuranSurah,
+    hasPreviousQuranSurah,
+    playMafatihTrack,
     isFullPlayerOpen,
     setIsFullPlayerOpen,
   };

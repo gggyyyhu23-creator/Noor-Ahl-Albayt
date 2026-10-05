@@ -45,7 +45,7 @@ export const MAFATIH_MUNAJAT: MafatihSection[] = [
 
   // 3. مناجاة التائبين (المناجاة الأولى من الخمسة عشر)
   {
-    id: 'mafatih-munajat-taibin',
+    id: 'mafatih-munajat-01-taibeen',
     category: 'munajat',
     categoryLabel: 'المناجاة',
     title: 'مناجاة التائبين للإمام زين العابدين (ع)',

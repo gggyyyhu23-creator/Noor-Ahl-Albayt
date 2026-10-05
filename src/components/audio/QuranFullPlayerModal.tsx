@@ -14,7 +14,9 @@ import {
   Check, 
   Sparkles,
   Loader2,
-  ChevronDown
+  ChevronDown,
+  SkipBack,
+  SkipForward
 } from 'lucide-react';
 import { useAudioEngine } from '../../context/AudioContext';
 import { QuranAudioTrack, RepeatMode } from '../../types/audioEngine';
@@ -57,6 +59,10 @@ export const QuranFullPlayerModal: React.FC<QuranFullPlayerModalProps> = ({
     setPlaybackSpeed,
     setRepeatMode,
     playQuranSurah,
+    playNextQuranSurah,
+    playPreviousQuranSurah,
+    hasNextQuranSurah,
+    hasPreviousQuranSurah,
     quranState,
   } = useAudioEngine();
 
@@ -260,11 +266,11 @@ export const QuranFullPlayerModal: React.FC<QuranFullPlayerModalProps> = ({
         </div>
 
         {/* 4. Controls Toolbar */}
-        <div className="flex items-center justify-between gap-2 pt-4 border-t border-[#1d4536]">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2.5 pt-4 border-t border-[#1d4536]">
           {/* Repeat Mode Button */}
           <button
             onClick={handleCycleRepeat}
-            className={`p-2.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`p-2 sm:p-2.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1 ${
               repeatMode !== 'off'
                 ? 'bg-amber-500/20 text-[#d4af37] border-amber-500/40 shadow'
                 : 'bg-[#122a21] text-[#7f9e92] border-[#234d3d] hover:text-white'
@@ -274,15 +280,29 @@ export const QuranFullPlayerModal: React.FC<QuranFullPlayerModalProps> = ({
             }`}
           >
             <Repeat className="w-4 h-4" />
-            <span className="hidden sm:inline text-[11px]">
+            <span className="hidden md:inline text-[11px]">
               {repeatMode === 'off' ? 'بدون تكرار' : repeatMode === 'track' ? 'تكرار السورة' : 'تكرار الآية'}
             </span>
+          </button>
+
+          {/* Previous Surah Button */}
+          <button
+            onClick={playPreviousQuranSurah}
+            disabled={!hasPreviousQuranSurah}
+            className={`p-2 sm:p-2.5 rounded-xl border transition-all flex items-center justify-center ${
+              hasPreviousQuranSurah
+                ? 'bg-[#122a21] text-[#cbdad3] hover:text-[#d4af37] border-[#234d3d] hover:border-[#d4af37] active:scale-95'
+                : 'bg-[#0f1f19] text-[#4a6358] border-transparent cursor-not-allowed opacity-30'
+            }`}
+            title={hasPreviousQuranSurah ? 'السورة السابقة' : 'لا توجد سورة سابقة'}
+          >
+            <SkipBack className="w-4 h-4" />
           </button>
 
           {/* Seek -10s */}
           <button
             onClick={() => seekRelative(-10)}
-            className="p-2.5 rounded-xl bg-[#122a21] text-[#cbdad3] hover:text-white border border-[#234d3d] hover:border-[#d4af37] active:scale-95 transition-all flex items-center gap-1"
+            className="p-2 sm:p-2.5 rounded-xl bg-[#122a21] text-[#cbdad3] hover:text-white border border-[#234d3d] hover:border-[#d4af37] active:scale-95 transition-all flex items-center gap-1"
             title="تأخير 10 ثوانٍ"
           >
             <RotateCcw className="w-4 h-4" />
@@ -292,7 +312,7 @@ export const QuranFullPlayerModal: React.FC<QuranFullPlayerModalProps> = ({
           {/* Primary Play / Pause Button */}
           <button
             onClick={togglePlay}
-            className="w-14 h-14 rounded-2xl bg-gradient-to-r from-[#d4af37] to-amber-500 text-[#0b1311] shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
+            className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-r from-[#d4af37] to-amber-500 text-[#0b1311] shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center shrink-0"
             title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل'}
           >
             {isLoading ? (
@@ -307,17 +327,31 @@ export const QuranFullPlayerModal: React.FC<QuranFullPlayerModalProps> = ({
           {/* Seek +10s */}
           <button
             onClick={() => seekRelative(10)}
-            className="p-2.5 rounded-xl bg-[#122a21] text-[#cbdad3] hover:text-white border border-[#234d3d] hover:border-[#d4af37] active:scale-95 transition-all flex items-center gap-1"
+            className="p-2 sm:p-2.5 rounded-xl bg-[#122a21] text-[#cbdad3] hover:text-white border border-[#234d3d] hover:border-[#d4af37] active:scale-95 transition-all flex items-center gap-1"
             title="تقديم 10 ثوانٍ"
           >
             <span className="text-[10px] font-mono hidden sm:inline">+10s</span>
             <RotateCw className="w-4 h-4" />
           </button>
 
+          {/* Next Surah Button */}
+          <button
+            onClick={playNextQuranSurah}
+            disabled={!hasNextQuranSurah}
+            className={`p-2 sm:p-2.5 rounded-xl border transition-all flex items-center justify-center ${
+              hasNextQuranSurah
+                ? 'bg-[#122a21] text-[#cbdad3] hover:text-[#d4af37] border-[#234d3d] hover:border-[#d4af37] active:scale-95'
+                : 'bg-[#0f1f19] text-[#4a6358] border-transparent cursor-not-allowed opacity-30'
+            }`}
+            title={hasNextQuranSurah ? 'السورة التالية' : 'لا توجد سورة تالية'}
+          >
+            <SkipForward className="w-4 h-4" />
+          </button>
+
           {/* Speed Selector Button */}
           <button
             onClick={handleCycleSpeed}
-            className="p-2.5 rounded-xl bg-[#122a21] text-[#d4af37] hover:bg-[#1a3d30] border border-[#234d3d] text-xs font-bold transition-all flex items-center gap-1"
+            className="p-2 sm:p-2.5 rounded-xl bg-[#122a21] text-[#d4af37] hover:bg-[#1a3d30] border border-[#234d3d] text-xs font-bold transition-all flex items-center gap-1"
             title="سرعة التشغيل"
           >
             <Gauge className="w-4 h-4" />

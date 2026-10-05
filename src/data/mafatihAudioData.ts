@@ -469,7 +469,7 @@ export const MAFATIH_AUDIO_TRACKS: MafatihAudioTrack[] = [
   // مناجاة التائبين
   {
     id: 'audio-taibin-akraf',
-    itemId: 'mafatih-munajat-taibin',
+    itemId: 'mafatih-munajat-01-taibeen',
     title: 'مناجاة التائبين للإمام زين العابدين (ع)',
     reciterId: 'akraf',
     reciterName: 'حسين الأكرف',
@@ -479,7 +479,7 @@ export const MAFATIH_AUDIO_TRACKS: MafatihAudioTrack[] = [
   },
   {
     id: 'audio-taibin-abather',
-    itemId: 'mafatih-munajat-taibin',
+    itemId: 'mafatih-munajat-01-taibeen',
     title: 'مناجاة التائبين بصوت أباذر الحلواجي',
     reciterId: 'abather',
     reciterName: 'أباذر الحلواجي',

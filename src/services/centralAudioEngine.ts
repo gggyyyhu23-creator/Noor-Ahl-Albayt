@@ -6,13 +6,25 @@ import {
   RepeatMode 
 } from '../types/audioEngine';
 import { getCachedAudioUrl } from '../utils/audioStorage';
-import { saveQuranContinueReading } from '../utils/quranContinueReading';
+import { 
+  saveQuranContinueReading, 
+  QuranContinueReadingState,
+  getLastSelectedReciter,
+  saveLastSelectedReciter 
+} from '../utils/quranContinueReading';
+import { RECITERS_LIST } from '../data/quranData';
+import { ALL_114_SURAHS } from '../data/quranSurahsAll';
+import { getMushafPageForAyah } from '../utils/quranPageMapping';
 
 type AudioListener = (state: AudioEngineState) => void;
 
 class CentralAudioEngine {
   private audio: HTMLAudioElement | null = null;
   private listeners: Set<AudioListener> = new Set();
+
+  private pendingContinueReadingUpdate: Partial<QuranContinueReadingState> | null = null;
+  private lastContinueReadingSaveTime = 0;
+  private continueReadingSaveTimer: any = null;
 
   private state: AudioEngineState = {
     currentTrack: null,
@@ -46,6 +58,56 @@ class CentralAudioEngine {
     this.audio.addEventListener('playing', this.handlePlaying);
     this.audio.addEventListener('pause', this.handlePause);
     this.audio.addEventListener('error', this.handleError);
+
+    // Save state on unload/pagehide
+    window.addEventListener('beforeunload', this.handleWindowUnload);
+    window.addEventListener('pagehide', this.handleWindowUnload);
+  }
+
+  private handleWindowUnload = () => {
+    if (this.state.currentTrack?.type === 'quran' && this.audio) {
+      this.saveContinueReadingThrottled(
+        {
+          lastAudioPositionSec: this.audio.currentTime,
+        },
+        true
+      );
+    }
+    this.flushContinueReadingSave();
+  };
+
+  public flushContinueReadingSave() {
+    if (this.continueReadingSaveTimer) {
+      clearTimeout(this.continueReadingSaveTimer);
+      this.continueReadingSaveTimer = null;
+    }
+    if (this.pendingContinueReadingUpdate) {
+      saveQuranContinueReading(this.pendingContinueReadingUpdate);
+      this.pendingContinueReadingUpdate = null;
+      this.lastContinueReadingSaveTime = Date.now();
+    }
+  }
+
+  public saveContinueReadingThrottled(
+    update: Partial<QuranContinueReadingState>,
+    immediate: boolean = false
+  ) {
+    this.pendingContinueReadingUpdate = {
+      ...(this.pendingContinueReadingUpdate || {}),
+      ...update,
+    };
+
+    const now = Date.now();
+    const THROTTLE_MS = 5000; // max once every 5 seconds during continuous playback
+
+    if (immediate || now - this.lastContinueReadingSaveTime >= THROTTLE_MS) {
+      this.flushContinueReadingSave();
+    } else if (!this.continueReadingSaveTimer) {
+      const waitTime = Math.max(100, THROTTLE_MS - (now - this.lastContinueReadingSaveTime));
+      this.continueReadingSaveTimer = setTimeout(() => {
+        this.flushContinueReadingSave();
+      }, waitTime);
+    }
   }
 
   private handleTimeUpdate = () => {
@@ -70,18 +132,26 @@ class CentralAudioEngine {
             currentAyahNumber: currentAyah.ayahNumber,
             activeAyahHighlight: currentAyah.ayahNumber,
           };
+          // Save immediately on verse transition
+          this.saveContinueReadingThrottled(
+            {
+              lastAyahNumber: currentAyah.ayahNumber,
+            },
+            true
+          );
         }
       }
 
-      // Periodically record audio progress in continue reading
-      if (Math.floor(currentTime) % 3 === 0) {
-        saveQuranContinueReading({
+      // Throttled position update (no frequent localStorage writes)
+      this.saveContinueReadingThrottled(
+        {
           lastAudioPositionSec: currentTime,
           lastAudioSurahNumber: qTrack.surahNumber,
           lastSurahNumber: qTrack.surahNumber,
           lastReciterId: qTrack.reciterId,
-        });
-      }
+        },
+        false
+      );
     }
 
     this.setState({
@@ -126,6 +196,15 @@ class CentralAudioEngine {
   };
 
   private handlePause = () => {
+    if (this.state.currentTrack?.type === 'quran' && this.audio) {
+      this.saveContinueReadingThrottled(
+        {
+          lastAudioPositionSec: this.audio.currentTime,
+        },
+        true
+      );
+    }
+    this.flushContinueReadingSave();
     this.setState({ isPlaying: false, isLoading: false });
   };
 
@@ -164,7 +243,7 @@ class CentralAudioEngine {
       return;
     }
 
-    // Set Quran-specific playback state if Quran track
+    // Set Quran-specific playback state if Quran track, or clear if non-quran
     let qState: QuranPlaybackState | null = null;
     if (track.type === 'quran') {
       const qTrack = track as QuranAudioTrack;
@@ -180,12 +259,20 @@ class CentralAudioEngine {
         activeAyahHighlight: qTrack.targetAyahNumber,
       };
 
-      saveQuranContinueReading({
-        lastSurahNumber: qTrack.surahNumber,
-        lastSurahName: qTrack.surahName,
-        lastReciterId: qTrack.reciterId,
-        lastAudioSurahNumber: qTrack.surahNumber,
-      });
+      // Immediate save when Quran surah is changed/started
+      this.saveContinueReadingThrottled(
+        {
+          lastSurahNumber: qTrack.surahNumber,
+          lastSurahName: qTrack.surahName,
+          lastReciterId: qTrack.reciterId,
+          lastAudioSurahNumber: qTrack.surahNumber,
+          lastAudioPositionSec: options?.startTimeSec || 0,
+        },
+        true
+      );
+    } else {
+      // Non-Quran track (Mafatih or General) - flush any pending Quran save
+      this.flushContinueReadingSave();
     }
 
     this.setState({
@@ -226,7 +313,104 @@ class CentralAudioEngine {
     }
   }
 
+  public async playNextQuranSurah(): Promise<boolean> {
+    const curSurah =
+      this.state.quranState?.surahNumber ||
+      (this.state.currentTrack?.type === 'quran'
+        ? (this.state.currentTrack as QuranAudioTrack).surahNumber
+        : 1);
+
+    if (curSurah >= 114) {
+      return false;
+    }
+
+    const nextSurah = curSurah + 1;
+    const reciterId =
+      this.state.quranState?.reciterId ||
+      (this.state.currentTrack?.type === 'quran'
+        ? (this.state.currentTrack as QuranAudioTrack).reciterId
+        : getLastSelectedReciter());
+
+    return this.playQuranSurahInternal(nextSurah, reciterId);
+  }
+
+  public async playPreviousQuranSurah(): Promise<boolean> {
+    const curSurah =
+      this.state.quranState?.surahNumber ||
+      (this.state.currentTrack?.type === 'quran'
+        ? (this.state.currentTrack as QuranAudioTrack).surahNumber
+        : 1);
+
+    if (curSurah <= 1) {
+      return false;
+    }
+
+    const prevSurah = curSurah - 1;
+    const reciterId =
+      this.state.quranState?.reciterId ||
+      (this.state.currentTrack?.type === 'quran'
+        ? (this.state.currentTrack as QuranAudioTrack).reciterId
+        : getLastSelectedReciter());
+
+    return this.playQuranSurahInternal(prevSurah, reciterId);
+  }
+
+  private async playQuranSurahInternal(
+    surahNumber: number,
+    reciterId?: string
+  ): Promise<boolean> {
+    const chosenReciterId = reciterId || getLastSelectedReciter();
+    saveLastSelectedReciter(chosenReciterId);
+
+    const reciter =
+      RECITERS_LIST.find((r) => r.id === chosenReciterId) || RECITERS_LIST[0];
+    const surahMeta =
+      ALL_114_SURAHS.find((s) => s.number === surahNumber) || ALL_114_SURAHS[0];
+    const targetPage = getMushafPageForAyah(surahNumber, 1);
+
+    const qTrack: QuranAudioTrack = {
+      id: `${reciter.id}_surah_${surahNumber}`,
+      type: 'quran',
+      title: `سورة ${surahMeta.name}`,
+      subtitle: `القارئ ${reciter.name}`,
+      audioUrl: reciter.sampleUrl(surahNumber),
+      surahNumber,
+      surahName: surahMeta.name,
+      reciterId: reciter.id,
+      reciterName: reciter.name,
+      targetAyahNumber: 1,
+      targetMushafPage: targetPage,
+    };
+
+    // Immediate save of continue reading for surah change
+    this.saveContinueReadingThrottled(
+      {
+        lastSurahNumber: surahNumber,
+        lastSurahName: surahMeta.name,
+        lastAyahNumber: 1,
+        lastMushafPage: targetPage,
+        lastReciterId: reciter.id,
+        lastAudioSurahNumber: surahNumber,
+        lastAudioPositionSec: 0,
+      },
+      true
+    );
+
+    await this.play(qTrack, { startTimeSec: 0 });
+    return true;
+  }
+
   public pause() {
+    if (this.state.currentTrack?.type === 'quran' && this.audio) {
+      this.saveContinueReadingThrottled(
+        {
+          lastAudioPositionSec: this.audio.currentTime,
+        },
+        true
+      );
+    }
+    this.flushContinueReadingSave();
+
     if (this.audio) {
       this.audio.pause();
     }
@@ -283,6 +467,16 @@ class CentralAudioEngine {
   }
 
   public stop() {
+    if (this.state.currentTrack?.type === 'quran' && this.audio) {
+      this.saveContinueReadingThrottled(
+        {
+          lastAudioPositionSec: this.audio.currentTime,
+        },
+        true
+      );
+    }
+    this.flushContinueReadingSave();
+
     if (this.audio) {
       this.audio.pause();
       this.audio.currentTime = 0;
