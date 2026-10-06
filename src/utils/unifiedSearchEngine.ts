@@ -12,7 +12,8 @@ import {
 import { 
   PRAYER_LEARNING_STAGES, 
   PRAYER_RULINGS, 
-  PRAYER_COMMON_MISTAKES 
+  PRAYER_COMMON_MISTAKES,
+  PRAYER_AUDIO_LESSONS 
 } from '../data/prayer';
 import { SHAKK_RULES } from '../data/shakkData';
 import { INFALLIBLES_LIST, STORIES_LIST } from '../data/shiaInfallibles';
@@ -471,6 +472,60 @@ export function unifiedSearch(rawQuery: string, maxResults = 15): UnifiedSearchR
         targetTab: 'prayer_guide',
         targetId: mistake.id,
         badge: mistake.categoryLabel
+      });
+    }
+  });
+
+  // =========================================================================
+  // 5b. معلّم الصلاة الصوتي (Prayer Audio Lessons - 20 Lessons)
+  // =========================================================================
+  PRAYER_AUDIO_LESSONS.forEach((lesson) => {
+    const combinedContent = `${lesson.title} ${lesson.shortDescription} ${lesson.category} ${lesson.content} ${lesson.practicalSteps.join(' ')}`;
+    
+    let catBonus = 0;
+    if (
+      parsed.intent === 'how_to' ||
+      qNorm.includes('معلم الصلاة') ||
+      qNorm.includes('معلم') ||
+      qNorm.includes('صوت') ||
+      qNorm.includes('شرح الصلاة') ||
+      qNorm.includes('استماع') ||
+      qNorm.includes('شلون اصلي') ||
+      qNorm.includes('طريقة الصلاة') ||
+      qNorm.includes('كيفية الصلاة') ||
+      qNorm.includes('الركوع') ||
+      qNorm.includes('السجود') ||
+      qNorm.includes('القنوت') ||
+      qNorm.includes('التشهد') ||
+      qNorm.includes('السلام') ||
+      qNorm.includes('صلاة الصبح') ||
+      qNorm.includes('صلاة المغرب') ||
+      qNorm.includes('صلاة الظهر') ||
+      qNorm.includes('صلاة العصر') ||
+      qNorm.includes('صلاة العشاء')
+    ) {
+      catBonus = 35;
+    }
+
+    const score = calculateMatchScore(
+      lesson.title,
+      combinedContent,
+      ['معلم الصلاة', 'شرح الصلاة', lesson.title, `الدرس ${lesson.order}`, lesson.category],
+      catBonus
+    );
+
+    if (score >= 25) {
+      addResult({
+        id: `prayer-audio-lesson-${lesson.id}`,
+        category: 'prayer_learn',
+        categoryLabel: 'معلّم الصلاة الصوتي',
+        title: `الدرس ${lesson.order}: ${lesson.title}`,
+        snippet: lesson.shortDescription || lesson.content.slice(0, 130) + '...',
+        source: lesson.source,
+        score,
+        targetTab: 'prayer_guide',
+        targetId: lesson.id,
+        badge: lesson.category,
       });
     }
   });

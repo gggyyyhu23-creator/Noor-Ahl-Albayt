@@ -91,6 +91,7 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
     playQuranSurah,
     togglePlay,
     pause,
+    seek,
     isFullPlayerOpen,
     setIsFullPlayerOpen,
     quranState,
@@ -195,14 +196,34 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
     };
   }, [selectedSurahNum]);
 
-  // Sync active ayah from audio engine if audio is playing in current surah
+  // Sync active ayah and mushaf page from audio engine if audio is playing
   useEffect(() => {
-    if (quranState && quranState.surahNumber === selectedSurahNum) {
-      if (quranState.currentAyahNumber && quranState.currentAyahNumber !== activeAyahNum) {
-        setActiveAyahNum(quranState.currentAyahNumber);
+    if (quranState) {
+      if (quranState.surahNumber === selectedSurahNum) {
+        if (quranState.currentAyahNumber && quranState.currentAyahNumber !== activeAyahNum) {
+          setActiveAyahNum(quranState.currentAyahNumber);
+        }
+      }
+      // If following audio in Mushaf Mode, automatically turn page when ayah page advances
+      if (
+        readingMode === 'mushaf' &&
+        isPlaying &&
+        quranState.currentMushafPage &&
+        quranState.currentMushafPage !== currentPageNum
+      ) {
+        setCurrentPageNum(quranState.currentMushafPage);
       }
     }
-  }, [quranState?.currentAyahNumber, quranState?.surahNumber, selectedSurahNum]);
+  }, [
+    quranState?.currentAyahNumber,
+    quranState?.surahNumber,
+    quranState?.currentMushafPage,
+    selectedSurahNum,
+    readingMode,
+    isPlaying,
+    currentPageNum,
+    activeAyahNum,
+  ]);
 
   // Auto-scroll to active ayah in Text View if enabled
   useEffect(() => {
@@ -403,6 +424,39 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
 
     await playQuranSurah(surahNumber, selectedReciter.id, {
       startAyah: ayah,
+      startPage: page,
+    });
+  };
+
+  // Play or Seek directly to a specific ayah
+  const handlePlayAyahDirect = async (ayahNumber: number) => {
+    setActiveAyahNum(ayahNumber);
+    const page = getMushafPageForAyah(selectedSurahNum, ayahNumber);
+    saveQuranContinueReading({
+      lastViewMode: readingMode,
+      lastSurahNumber: selectedSurahNum,
+      lastAyahNumber: ayahNumber,
+      lastMushafPage: page,
+    });
+
+    // If already playing this surah and track has reliable timestamps, seek directly
+    if (
+      isPlaying &&
+      currentTrack?.type === 'quran' &&
+      quranState?.surahNumber === selectedSurahNum &&
+      (currentTrack as any).ayahTimestamps?.length
+    ) {
+      const timestamps = (currentTrack as any).ayahTimestamps;
+      const targetTimestamp = timestamps.find((t: any) => t.ayahNumber === ayahNumber);
+      if (targetTimestamp) {
+        seek(targetTimestamp.startMs / 1000);
+        return;
+      }
+    }
+
+    // Otherwise initiate playback from this ayah
+    await playQuranSurah(selectedSurahNum, selectedReciter.id, {
+      startAyah: ayahNumber,
       startPage: page,
     });
   };
@@ -886,12 +940,21 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
         /* ============================================================== */
         <div className="space-y-3">
           {/* Page Meta Ribbon Bar */}
-          <div className="px-4 py-2.5 rounded-xl bg-[#0d221a] border border-[#1c4737] flex items-center justify-between text-xs text-[#c4ded3]">
+          <div className="px-4 py-2.5 rounded-xl bg-[#0d221a] border border-[#1c4737] flex flex-wrap items-center justify-between gap-2 text-xs text-[#c4ded3]">
             <div className="flex items-center gap-3">
               <span className="font-bold text-[#d4af37]">سورة {pageMeta.surahName}</span>
               <span className="text-[#84a395]">•</span>
               <span>الجزء {pageMeta.juz}</span>
             </div>
+
+            {isPlaying && currentTrack?.type === 'quran' && quranState && (
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#143427] border border-[#d4af37]/50 text-[#d4af37] text-[11px] font-medium shadow-sm animate-pulse">
+                <Volume2 className="w-3.5 h-3.5 text-[#d4af37]" />
+                <span>
+                  الآية {quranState.currentAyahNumber} ({quranState.surahName}) - {quranState.reciterName}
+                </span>
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               <span className="font-mono font-bold text-[#d4af37] text-sm">
@@ -1203,19 +1266,18 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
               <div className="space-y-4">
                 {currentSurahDetail.ayahs.map((ayah) => {
                   const isCurrentActive = activeAyahNum === ayah.numberInSurah;
+                  const isThisAyahPlaying =
+                    isPlaying &&
+                    currentTrack?.type === 'quran' &&
+                    quranState?.surahNumber === selectedSurahNum &&
+                    quranState?.currentAyahNumber === ayah.numberInSurah;
 
                   return (
                     <div
                       key={ayah.numberInSurah}
                       id={`ayah-node-${ayah.numberInSurah}`}
                       onClick={() => {
-                        setActiveAyahNum(ayah.numberInSurah);
-                        saveQuranContinueReading({
-                          lastViewMode: 'text',
-                          lastSurahNumber: selectedSurahNum,
-                          lastAyahNumber: ayah.numberInSurah,
-                          lastMushafPage: getMushafPageForAyah(selectedSurahNum, ayah.numberInSurah),
-                        });
+                        handlePlayAyahDirect(ayah.numberInSurah);
                       }}
                       className={`p-4 rounded-xl transition-all border cursor-pointer ${
                         isCurrentActive
@@ -1241,6 +1303,30 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
                         </p>
 
                         <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Play / Pause this Ayah */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isThisAyahPlaying) {
+                                pause();
+                              } else {
+                                handlePlayAyahDirect(ayah.numberInSurah);
+                              }
+                            }}
+                            className={`p-1.5 rounded-lg transition-all ${
+                              isThisAyahPlaying
+                                ? 'bg-[#d4af37] text-[#0b1311] shadow'
+                                : 'bg-[#143328]/30 hover:bg-[#d4af37] text-[#8fa89b] hover:text-[#0b1311]'
+                            }`}
+                            title={isThisAyahPlaying ? 'إيقاف مؤقت للآية' : 'تشغيل التلاوة من هذه الآية'}
+                          >
+                            {isThisAyahPlaying ? (
+                              <Pause className="w-3.5 h-3.5 fill-current" />
+                            ) : (
+                              <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                            )}
+                          </button>
+
                           {/* Copy */}
                           <button
                             onClick={(e) => {

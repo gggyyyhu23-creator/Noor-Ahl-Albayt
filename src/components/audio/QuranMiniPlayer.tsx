@@ -108,7 +108,7 @@ export const QuranMiniPlayer: React.FC<QuranMiniPlayerProps> = ({
                 )}
                 {!isQuran && (
                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#16382b] text-emerald-300 border border-[#275947] shrink-0">
-                    مفاتيح الجنان
+                    {currentTrack.type === 'prayer_lesson' ? 'معلّم الصلاة' : 'مفاتيح الجنان'}
                   </span>
                 )}
               </div>

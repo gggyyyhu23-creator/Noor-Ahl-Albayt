@@ -15,7 +15,7 @@ export interface QuranContinueReadingState {
 
 const CONTINUE_READING_KEY = 'quran_continue_reading_state_v2';
 const LAST_RECITER_KEY = 'quran_last_selected_reciter_id_v2';
-const DEFAULT_RECITER_ID = 'maytham-al-tammar';
+const DEFAULT_RECITER_ID = 'mishary-alafasy';
 
 let memoryContinueReading: QuranContinueReadingState | null = null;
 let memoryLastReciter: string = DEFAULT_RECITER_ID;

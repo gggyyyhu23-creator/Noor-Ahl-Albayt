@@ -1,4 +1,4 @@
-export type AudioTrackType = 'quran' | 'mafatih' | 'general';
+export type AudioTrackType = 'quran' | 'mafatih' | 'prayer_lesson' | 'general';
 
 export type RepeatMode = 'off' | 'track' | 'ayah';
 
@@ -6,6 +6,10 @@ export interface AyahTimestamp {
   ayahNumber: number;
   startMs: number;
   endMs: number;
+  polygon?: string;
+  page?: string;
+  x?: string;
+  y?: string;
 }
 
 export interface BaseAudioTrack {
@@ -15,6 +19,7 @@ export interface BaseAudioTrack {
   subtitle: string;
   audioUrl: string;
   approxDurationSec?: number;
+  scriptText?: string;
 }
 
 export interface QuranAudioTrack extends BaseAudioTrack {
@@ -26,6 +31,7 @@ export interface QuranAudioTrack extends BaseAudioTrack {
   targetAyahNumber?: number;
   targetMushafPage?: number;
   ayahTimestamps?: AyahTimestamp[];
+  hasReliableTimestamps?: boolean;
 }
 
 export type AnyAudioTrack = BaseAudioTrack | QuranAudioTrack;

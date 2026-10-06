@@ -26,6 +26,22 @@ class CentralAudioEngine {
   private lastContinueReadingSaveTime = 0;
   private continueReadingSaveTimer: any = null;
 
+  private speechTimer: any = null;
+  private isSpeechActive = false;
+
+  private stopSpeech() {
+    if (this.speechTimer) {
+      clearInterval(this.speechTimer);
+      this.speechTimer = null;
+    }
+    this.isSpeechActive = false;
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {}
+    }
+  }
+
   private state: AudioEngineState = {
     currentTrack: null,
     isPlaying: false,
@@ -126,16 +142,31 @@ class CentralAudioEngine {
         const currentAyah = qTrack.ayahTimestamps.find(
           (t) => curMs >= t.startMs && curMs < t.endMs
         );
+
+        // Ayah repeat mode: loop current ayah seamlessly
+        if (this.state.repeatMode === 'ayah' && currentAyah && updatedQuranState?.currentAyahNumber) {
+          if (curMs >= currentAyah.endMs - 120) {
+            this.audio.currentTime = currentAyah.startMs / 1000;
+            return;
+          }
+        }
+
         if (currentAyah && currentAyah.ayahNumber !== updatedQuranState.currentAyahNumber) {
+          const ayahPage = currentAyah.page
+            ? parseInt(currentAyah.page, 10)
+            : getMushafPageForAyah(qTrack.surahNumber, currentAyah.ayahNumber);
+
           updatedQuranState = {
             ...updatedQuranState,
             currentAyahNumber: currentAyah.ayahNumber,
             activeAyahHighlight: currentAyah.ayahNumber,
+            currentMushafPage: ayahPage || updatedQuranState.currentMushafPage,
           };
           // Save immediately on verse transition
           this.saveContinueReadingThrottled(
             {
               lastAyahNumber: currentAyah.ayahNumber,
+              lastMushafPage: ayahPage || updatedQuranState.currentMushafPage,
             },
             true
           );
@@ -247,16 +278,34 @@ class CentralAudioEngine {
     let qState: QuranPlaybackState | null = null;
     if (track.type === 'quran') {
       const qTrack = track as QuranAudioTrack;
+
+      let initialAyah = qTrack.targetAyahNumber || 1;
+      let initialPage = qTrack.targetMushafPage || 1;
+
+      // If starting from mid-surah and timestamps exist, identify exact starting ayah immediately
+      if (options?.startTimeSec !== undefined && options.startTimeSec > 0 && qTrack.ayahTimestamps) {
+        const startMs = options.startTimeSec * 1000;
+        const matched = qTrack.ayahTimestamps.find(
+          (t) => startMs >= t.startMs && startMs < t.endMs
+        );
+        if (matched) {
+          initialAyah = matched.ayahNumber;
+          if (matched.page) {
+            initialPage = parseInt(matched.page, 10) || initialPage;
+          }
+        }
+      }
+
       qState = {
         surahNumber: qTrack.surahNumber,
         surahName: qTrack.surahName,
         reciterId: qTrack.reciterId,
         reciterName: qTrack.reciterName,
-        currentAyahNumber: qTrack.targetAyahNumber || 1,
-        currentMushafPage: qTrack.targetMushafPage || 1,
+        currentAyahNumber: initialAyah,
+        currentMushafPage: initialPage,
         viewMode: this.state.quranState?.viewMode || 'mushaf',
         hasReliableTimestamps: Boolean(qTrack.ayahTimestamps && qTrack.ayahTimestamps.length > 0),
-        activeAyahHighlight: qTrack.targetAyahNumber,
+        activeAyahHighlight: initialAyah,
       };
 
       // Immediate save when Quran surah is changed/started
@@ -266,6 +315,8 @@ class CentralAudioEngine {
           lastSurahName: qTrack.surahName,
           lastReciterId: qTrack.reciterId,
           lastAudioSurahNumber: qTrack.surahNumber,
+          lastAyahNumber: initialAyah,
+          lastMushafPage: initialPage,
           lastAudioPositionSec: options?.startTimeSec || 0,
         },
         true
@@ -281,6 +332,77 @@ class CentralAudioEngine {
       error: null,
       quranState: qState,
     });
+
+    // Check if this is a prayer lesson without external audioUrl
+    if (track.type === 'prayer_lesson' && (!track.audioUrl || !track.audioUrl.startsWith('http'))) {
+      this.stopSpeech();
+      if (this.audio) {
+        this.audio.pause();
+        this.audio.src = '';
+      }
+
+      const scriptText = track.scriptText || track.subtitle || track.title;
+      const wordCount = scriptText.split(/\s+/).filter(Boolean).length;
+      const estimatedDuration = Math.max(25, Math.round(wordCount / 2.0));
+      const startSec = Math.max(0, options?.startTimeSec || 0);
+
+      this.setState({
+        currentTrack: track,
+        isPlaying: true,
+        isLoading: false,
+        duration: estimatedDuration,
+        currentTime: startSec,
+        progress: estimatedDuration > 0 ? (startSec / estimatedDuration) * 100 : 0,
+        quranState: null,
+        error: null,
+      });
+
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        this.isSpeechActive = true;
+        try {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(scriptText);
+          utterance.lang = 'ar-SA';
+          utterance.rate = Math.max(0.75, Math.min(1.4, this.state.playbackSpeed * 0.95));
+
+          const voices = window.speechSynthesis.getVoices();
+          const arVoice = voices.find((v) => v.lang.startsWith('ar') || v.name.toLowerCase().includes('arabic') || v.lang.includes('ar'));
+          if (arVoice) {
+            utterance.voice = arVoice;
+          }
+
+          const startMs = Date.now() - (startSec * 1000);
+          this.speechTimer = setInterval(() => {
+            const elapsed = (Date.now() - startMs) / 1000;
+            if (elapsed >= estimatedDuration) {
+              this.stopSpeech();
+              this.handleEnded();
+            } else {
+              this.setState({
+                currentTime: elapsed,
+                progress: Math.min(100, (elapsed / estimatedDuration) * 100),
+              });
+            }
+          }, 250);
+
+          utterance.onend = () => {
+            this.stopSpeech();
+            this.handleEnded();
+          };
+
+          utterance.onerror = (e) => {
+            if (e.error !== 'interrupted' && e.error !== 'canceled') {
+              console.warn('SpeechSynthesis notice:', e.error);
+            }
+          };
+
+          window.speechSynthesis.speak(utterance);
+        } catch (synthErr) {
+          console.warn('SpeechSynthesis error:', synthErr);
+        }
+      }
+      return;
+    }
 
     if (!this.audio) return;
 
@@ -401,6 +523,20 @@ class CentralAudioEngine {
   }
 
   public pause() {
+    if (this.isSpeechActive) {
+      if (this.speechTimer) {
+        clearInterval(this.speechTimer);
+        this.speechTimer = null;
+      }
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.pause();
+        } catch (e) {}
+      }
+      this.setState({ isPlaying: false });
+      return;
+    }
+
     if (this.state.currentTrack?.type === 'quran' && this.audio) {
       this.saveContinueReadingThrottled(
         {
@@ -418,6 +554,36 @@ class CentralAudioEngine {
   }
 
   public resume() {
+    if (this.isSpeechActive || (this.state.currentTrack?.type === 'prayer_lesson' && (!this.state.currentTrack.audioUrl || !this.state.currentTrack.audioUrl.startsWith('http')))) {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        if (window.speechSynthesis.paused) {
+          try {
+            window.speechSynthesis.resume();
+          } catch (e) {}
+          const curTime = this.state.currentTime;
+          const dur = this.state.duration || 60;
+          const startMs = Date.now() - (curTime * 1000);
+          this.speechTimer = setInterval(() => {
+            const elapsed = (Date.now() - startMs) / 1000;
+            if (elapsed >= dur) {
+              this.stopSpeech();
+              this.handleEnded();
+            } else {
+              this.setState({
+                currentTime: elapsed,
+                progress: Math.min(100, (elapsed / dur) * 100),
+              });
+            }
+          }, 250);
+          this.setState({ isPlaying: true });
+          return;
+        } else if (this.state.currentTrack) {
+          this.play(this.state.currentTrack, { startTimeSec: this.state.currentTime });
+          return;
+        }
+      }
+    }
+
     if (this.audio) {
       this.audio.play().catch((err) => {
         console.warn('Resume failed:', err);
@@ -434,11 +600,55 @@ class CentralAudioEngine {
   }
 
   public seek(seconds: number) {
+    if (this.isSpeechActive) {
+      const dur = this.state.duration || 60;
+      const target = Math.max(0, Math.min(dur, seconds));
+      this.setState({
+        currentTime: target,
+        progress: dur > 0 ? (target / dur) * 100 : 0,
+      });
+      if (this.state.isPlaying && this.state.currentTrack) {
+        this.play(this.state.currentTrack, { startTimeSec: target });
+      }
+      return;
+    }
+
     if (!this.audio) return;
     const dur = this.audio.duration || this.state.duration || 0;
     const target = Math.max(0, Math.min(dur, seconds));
     this.audio.currentTime = target;
-    this.setState({ currentTime: target });
+
+    let updatedQuranState = this.state.quranState;
+    if (this.state.currentTrack?.type === 'quran' && updatedQuranState) {
+      const qTrack = this.state.currentTrack as QuranAudioTrack;
+      if (qTrack.ayahTimestamps && qTrack.ayahTimestamps.length > 0) {
+        const curMs = target * 1000;
+        const matched = qTrack.ayahTimestamps.find(
+          (t) => curMs >= t.startMs && curMs < t.endMs
+        );
+        if (matched) {
+          const ayahPage = matched.page
+            ? parseInt(matched.page, 10)
+            : getMushafPageForAyah(qTrack.surahNumber, matched.ayahNumber);
+          updatedQuranState = {
+            ...updatedQuranState,
+            currentAyahNumber: matched.ayahNumber,
+            activeAyahHighlight: matched.ayahNumber,
+            currentMushafPage: ayahPage || updatedQuranState.currentMushafPage,
+          };
+          this.saveContinueReadingThrottled(
+            {
+              lastAyahNumber: matched.ayahNumber,
+              lastMushafPage: ayahPage || updatedQuranState.currentMushafPage,
+              lastAudioPositionSec: target,
+            },
+            true
+          );
+        }
+      }
+    }
+
+    this.setState({ currentTime: target, quranState: updatedQuranState });
   }
 
   public seekPercent(percent: number) {
@@ -450,6 +660,10 @@ class CentralAudioEngine {
   }
 
   public seekRelative(seconds: number) {
+    if (this.isSpeechActive) {
+      this.seek((this.state.currentTime || 0) + seconds);
+      return;
+    }
     if (!this.audio) return;
     const target = this.audio.currentTime + seconds;
     this.seek(target);
@@ -460,6 +674,9 @@ class CentralAudioEngine {
       this.audio.playbackRate = speed;
     }
     this.setState({ playbackSpeed: speed });
+    if (this.isSpeechActive && this.state.isPlaying && this.state.currentTrack) {
+      this.play(this.state.currentTrack, { startTimeSec: this.state.currentTime });
+    }
   }
 
   public setRepeatMode(mode: RepeatMode) {
@@ -467,6 +684,8 @@ class CentralAudioEngine {
   }
 
   public stop() {
+    this.stopSpeech();
+
     if (this.state.currentTrack?.type === 'quran' && this.audio) {
       this.saveContinueReadingThrottled(
         {

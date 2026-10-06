@@ -94,13 +94,12 @@ export const QuranFullPlayerModal: React.FC<QuranFullPlayerModalProps> = ({
     setRepeatMode(nextMode);
   };
 
-  // Change reciter and maintain position
+  // Change reciter and maintain current verse position in new reciter's timing
   const handleChangeReciter = (reciterId: string) => {
     saveLastSelectedReciter(reciterId);
     setIsReciterSelectorOpen(false);
     playQuranSurah(qTrack.surahNumber, reciterId, {
-      startTimeSec: currentTime,
-      startAyah: quranState?.currentAyahNumber,
+      startAyah: quranState?.currentAyahNumber || 1,
       startPage: quranState?.currentMushafPage,
     });
   };

@@ -77,7 +77,14 @@ export default function App() {
 
   // Quick summary info for home
   const today = new Date();
-  const hijri = getHijriDate(today, 0);
+  const hijriAdjustment = (() => {
+    try {
+      return parseInt(localStorage.getItem('shia_hijri_adjustment') || '0', 10);
+    } catch {
+      return 0;
+    }
+  })();
+  const hijri = getHijriDate(today, hijriAdjustment);
   const city = POPULAR_CITIES[0];
   const prayerResult = calculateShiaPrayerTimes(today, city);
 

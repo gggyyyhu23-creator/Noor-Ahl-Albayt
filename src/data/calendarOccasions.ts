@@ -1108,6 +1108,24 @@ export const HIJRI_MONTH_NAMES = [
   'ذو الحجة',
 ];
 
+export const ARABIC_WEEKDAYS = [
+  'الأحد',
+  'الإثنين',
+  'الثلاثاء',
+  'الأربعاء',
+  'الخميس',
+  'الجمعة',
+  'السبت',
+] as const;
+
+/**
+ * Derives the Arabic weekday name strictly from the actual Gregorian date.
+ * Guarantees: Gregorian date -> Weekday (completely isolated from lunar/Hijri offset).
+ */
+export function getArabicWeekdayName(date: Date): string {
+  return ARABIC_WEEKDAYS[date.getDay()];
+}
+
 // Approximate Gregorian to Hijri algorithm with user adjustment option (-2 to +2 days)
 export function getHijriDate(date: Date, adjustmentDays: number = 0): { day: number; month: number; year: number; monthName: string } {
   const d = new Date(date.getTime() + adjustmentDays * 86400000);

@@ -28,7 +28,8 @@ import {
   HIJRI_MONTH_NAMES, 
   WEEK_DAYS_DEEDS,
   WeekDayDeed,
-  getHijriDate 
+  getHijriDate,
+  getArabicWeekdayName 
 } from '../data/calendarOccasions';
 import { OccasionItem } from '../types';
 import { isFavorite, toggleFavorite } from '../utils/favoritesStorage';
@@ -222,20 +223,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return occ.type === selectedOccasionType;
   });
 
-  // Arabic Gregorian formatters
-  const gregorianFormatted = new Intl.DateTimeFormat('ar-EG', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(currentDate);
+  // Weekday names derived STRICTLY from Gregorian date (unaffected by Hijri correction)
+  const currentWeekdayName = getArabicWeekdayName(currentDate);
+  const todayWeekdayName = getArabicWeekdayName(today);
 
-  const todayGregorianFormatted = new Intl.DateTimeFormat('ar-EG', {
-    weekday: 'long',
+  // Arabic Gregorian formatters strictly derived from Gregorian dates
+  const gregorianFormatted = `${currentWeekdayName}، ${new Intl.DateTimeFormat('ar-EG', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-  }).format(today);
+  }).format(currentDate)}`;
+
+  const todayGregorianFormatted = `${todayWeekdayName}، ${new Intl.DateTimeFormat('ar-EG', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(today)}`;
 
   // Active weekday deeds object
   const activeWeekDayDeed: WeekDayDeed = 
@@ -408,10 +411,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <div className="text-center sm:text-right space-y-1">
             <div className="flex items-center justify-center sm:justify-start gap-2 text-xs font-semibold text-[#d4af37]">
               <CalendarIcon className="w-4 h-4 text-[#d4af37]" />
-              <span>تَارِيخُ الْيَوْمِ الْمُبَارَكِ</span>
+              <span>تَارِيخُ الْيَوْمِ الْمُبَارَكِ ({todayWeekdayName})</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold font-quran text-[#f4edd9]">
-              {todayHijri.day} {todayHijri.monthName} {todayHijri.year} هـ
+              {todayWeekdayName} • {todayHijri.day} {todayHijri.monthName} {todayHijri.year} هـ
             </h2>
             <div className="text-xs sm:text-sm text-[#bcd4cb] font-amiri">
               الموافق: {todayGregorianFormatted}
@@ -607,9 +610,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         {/* Current viewed date display */}
         <div className="text-center">
           <div className="text-lg sm:text-xl font-bold font-quran text-white">
-            {currentHijri.day} {currentHijri.monthName} {currentHijri.year} هـ
+            {currentWeekdayName} • {currentHijri.day} {currentHijri.monthName} {currentHijri.year} هـ
           </div>
-          <div className="text-xs text-[#a2beb3]">{gregorianFormatted}</div>
+          <div className="text-xs text-[#a2beb3]">الموافق: {gregorianFormatted}</div>
         </div>
 
         <div className="flex items-center gap-1">
@@ -739,7 +742,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 text-xs">
           {WEEK_DAYS_DEEDS.map((dayItem) => {
             const isSelected = activeWeekDayTab === dayItem.dayIndex;
-            const isTodayDay = currentDayOfWeek === dayItem.dayIndex;
+            const isTodayDay = today.getDay() === dayItem.dayIndex;
             return (
               <button
                 key={dayItem.dayIndex}
