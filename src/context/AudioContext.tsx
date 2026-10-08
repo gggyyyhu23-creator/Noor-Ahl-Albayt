@@ -55,6 +55,8 @@ interface AudioContextValue extends AudioEngineState {
   hasPreviousQuranSurah: boolean;
   playMafatihTrack: (track: MafatihTrackInput, options?: { startTimeSec?: number }) => Promise<void>;
   playPrayerLessonTrack: (track: PrayerLessonTrackInput, options?: { startTimeSec?: number }) => Promise<void>;
+  playAdhanAudio: (prayerName: string, soundType?: 'spiritual_chime' | 'takbeer_call') => Promise<void>;
+  stopAdhanAudio: () => void;
   isFullPlayerOpen: boolean;
   setIsFullPlayerOpen: (open: boolean) => void;
 }
@@ -227,6 +229,26 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await play(audioEngineTrack, options);
   };
 
+  const playAdhanAudio = async (
+    prayerName: string,
+    soundType: 'spiritual_chime' | 'takbeer_call' = 'spiritual_chime'
+  ) => {
+    const adhanTrack: AnyAudioTrack = {
+      id: `adhan-${prayerName}-${Date.now()}`,
+      type: 'adhan',
+      title: `نداء أذان ${prayerName}`,
+      subtitle: soundType === 'spiritual_chime' ? 'نغمة الأذان الروحانية المباركة' : 'النداء والتكبير الشرعي',
+      audioUrl: '',
+      approxDurationSec: soundType === 'spiritual_chime' ? 8 : 12,
+      scriptText: soundType,
+    };
+    await play(adhanTrack);
+  };
+
+  const stopAdhanAudio = () => {
+    stop();
+  };
+
   const value: AudioContextValue = {
     ...engineState,
     play,
@@ -247,6 +269,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     hasPreviousQuranSurah,
     playMafatihTrack,
     playPrayerLessonTrack,
+    playAdhanAudio,
+    stopAdhanAudio,
     isFullPlayerOpen,
     setIsFullPlayerOpen,
   };

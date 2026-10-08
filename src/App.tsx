@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Home, 
   Clock, 
@@ -42,6 +42,7 @@ import { PrayerGuideView } from './components/PrayerGuideView';
 import { SmartAssistant } from './components/SmartAssistant';
 
 import { calculateShiaPrayerTimes, POPULAR_CITIES } from './utils/prayerTimes';
+import { prayerAdhanService } from './services/prayerAdhanService';
 import { getHijriDate, SHIA_OCCASIONS } from './data/calendarOccasions';
 import { getFavorites } from './utils/favoritesStorage';
 import { AudioProvider } from './context/AudioContext';
@@ -75,8 +76,16 @@ export default function App() {
   const [infalliblesTargetId, setInfalliblesTargetId] = useState<string | undefined>(undefined);
   const [assistantInitialQuery, setAssistantInitialQuery] = useState<string | undefined>(undefined);
 
-  // Quick summary info for home
-  const today = new Date();
+  // Quick summary info for home with live clock
+  const [liveNow, setLiveNow] = useState<Date>(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLiveNow(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const today = liveNow;
   const hijriAdjustment = (() => {
     try {
       return parseInt(localStorage.getItem('shia_hijri_adjustment') || '0', 10);
@@ -85,8 +94,13 @@ export default function App() {
     }
   })();
   const hijri = getHijriDate(today, hijriAdjustment);
-  const city = POPULAR_CITIES[0];
-  const prayerResult = calculateShiaPrayerTimes(today, city);
+  const city = prayerAdhanService.getSavedCity();
+  const prayerResult = calculateShiaPrayerTimes(
+    today, 
+    city, 
+    prayerAdhanService.getSavedMethod(), 
+    prayerAdhanService.getSavedOffsets()
+  );
 
   // Check if today has an occasion for in-app banner reminder
   const todayOccasion = SHIA_OCCASIONS.find(
@@ -355,24 +369,60 @@ export default function App() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Prayer Times Quick Widget */}
               <div 
-                onClick={() => setActiveTab('prayers')}
-                className="p-5 rounded-2xl bg-gradient-to-br from-[#122e23] to-[#0c1f18] border border-[#d4af37]/40 shadow-xl cursor-pointer hover:border-[#d4af37] transition-all hover:scale-[1.01]"
+                className="p-5 rounded-2xl bg-gradient-to-br from-[#122e23] via-[#16382b] to-[#0c1f18] border-2 border-[#d4af37]/60 shadow-xl flex flex-col justify-between"
               >
-                <div className="flex items-center justify-between text-xs text-[#d4af37] mb-2 font-bold">
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="w-4 h-4" />
-                    <span>مواقيت الصلاة ({city.name})</span>
-                  </span>
-                  <span>الجعفري</span>
+                <div>
+                  <div className="flex items-center justify-between text-xs text-[#d4af37] mb-2 font-bold">
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-[#d4af37]" />
+                      <span>مواقيت الصلاة ({city.name})</span>
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#0d241c] text-[#cbdad3] border border-[#1f4a3b]">
+                      الجعفري
+                    </span>
+                  </div>
+
+                  {/* Current Prayer */}
+                  <div className="flex items-baseline justify-between mb-2 pb-2 border-b border-[#1b3d2f]">
+                    <span className="text-xs text-[#a2beb3]">الصلاة الحالية:</span>
+                    <span className="text-xs font-bold text-white bg-[#143226] px-2.5 py-0.5 rounded-md border border-[#234d3d]">
+                      {prayerResult.currentPrayerName}
+                    </span>
+                  </div>
+
+                  {/* Next Prayer */}
+                  <div className="text-base sm:text-lg font-bold font-quran text-white">
+                    القادمة: {prayerResult.nextPrayerName}
+                  </div>
+
+                  <div className="flex items-baseline justify-between mt-0.5">
+                    <div className="font-mono text-2xl sm:text-3xl font-extrabold text-[#d4af37]">
+                      {prayerResult.nextPrayerTime}
+                    </div>
+
+                    <div className="text-xs text-[#a2beb3] font-mono">
+                      متبقي: <span className="text-white font-bold">{prayerResult.countdownFormatted || prayerResult.remainingTime}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-xl font-bold font-quran text-white">
-                  القادمة: {prayerResult.nextPrayerName}
-                </div>
-                <div className="font-mono text-2xl font-bold text-[#d4af37] mt-0.5">
-                  {prayerResult.nextPrayerTime}
-                </div>
-                <div className="text-xs text-[#a2beb3] mt-2">
-                  متبقي: <span className="text-[#f7ebd7] font-mono">{prayerResult.remainingTime}</span>
+
+                {/* Direct Action Buttons for Prayer Times and Qibla */}
+                <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-[#1d4334]">
+                  <button
+                    onClick={() => setActiveTab('prayers')}
+                    className="py-2 px-3 rounded-xl bg-[#d4af37] text-[#0b1311] font-bold text-xs hover:brightness-105 shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>أوقات الصلاة</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('qibla')}
+                    className="py-2 px-3 rounded-xl bg-[#143226] hover:bg-[#1c4535] text-[#d4af37] border border-[#d4af37]/40 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                  >
+                    <Compass className="w-3.5 h-3.5" />
+                    <span>القبلة</span>
+                  </button>
                 </div>
               </div>
 

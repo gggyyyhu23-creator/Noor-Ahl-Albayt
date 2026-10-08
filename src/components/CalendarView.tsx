@@ -42,6 +42,8 @@ import {
   requestNotificationPermission,
   sendOccasionNotification 
 } from '../utils/occasionNotification';
+import { calculateShiaPrayerTimes } from '../utils/prayerTimes';
+import { prayerAdhanService } from '../services/prayerAdhanService';
 
 interface CalendarViewProps {
   onGoToMafatih?: (itemId: string) => void;
@@ -65,6 +67,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   });
 
   const [selectedOccasionType, setSelectedOccasionType] = useState<string>('all');
+
+  // Prayer times calculated for the selected calendar date
+  const selectedDayPrayers = calculateShiaPrayerTimes(
+    currentDate,
+    prayerAdhanService.getSavedCity(),
+    prayerAdhanService.getSavedMethod(),
+    prayerAdhanService.getSavedOffsets()
+  );
 
   // Occasion Details Modal state
   const [selectedOccasion, setSelectedOccasion] = useState<OccasionItem | null>(() => {
@@ -636,6 +646,41 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           >
             شهر تالٍ
           </button>
+        </div>
+      </div>
+
+      {/* Selected Day Prayer Times Widget */}
+      <div className="rounded-xl bg-[#0c1e17] p-3.5 border border-[#1d4334] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-md">
+        <div className="flex items-center gap-2 font-bold text-[#d4af37]">
+          <Clock className="w-4 h-4 text-[#d4af37]" />
+          <span>مواقيت صلاة هذا اليوم ({prayerAdhanService.getSavedCity().name}):</span>
+        </div>
+
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center font-mono">
+          <div className="bg-[#122820] px-2 py-1 rounded-lg border border-[#1b3d2f]">
+            <span className="text-[10px] text-[#8fa79c] block font-amiri">الفجر</span>
+            <span className="font-bold text-white text-xs">{selectedDayPrayers.fajr}</span>
+          </div>
+          <div className="bg-[#122820] px-2 py-1 rounded-lg border border-[#1b3d2f]">
+            <span className="text-[10px] text-[#8fa79c] block font-amiri">الشروق</span>
+            <span className="font-bold text-amber-300 text-xs">{selectedDayPrayers.sunrise}</span>
+          </div>
+          <div className="bg-[#122820] px-2 py-1 rounded-lg border border-[#1b3d2f]">
+            <span className="text-[10px] text-[#8fa79c] block font-amiri">الظهر</span>
+            <span className="font-bold text-white text-xs">{selectedDayPrayers.dhuhr}</span>
+          </div>
+          <div className="bg-[#122820] px-2 py-1 rounded-lg border border-[#1b3d2f]">
+            <span className="text-[10px] text-[#8fa79c] block font-amiri">العصر</span>
+            <span className="font-bold text-white text-xs">{selectedDayPrayers.asr}</span>
+          </div>
+          <div className="bg-[#122820] px-2 py-1 rounded-lg border border-[#1b3d2f]">
+            <span className="text-[10px] text-[#d4af37] block font-amiri font-bold">المغرب</span>
+            <span className="font-bold text-[#d4af37] text-xs">{selectedDayPrayers.maghrib}</span>
+          </div>
+          <div className="bg-[#122820] px-2 py-1 rounded-lg border border-[#1b3d2f]">
+            <span className="text-[10px] text-[#8fa79c] block font-amiri">العشاء</span>
+            <span className="font-bold text-white text-xs">{selectedDayPrayers.isha}</span>
+          </div>
         </div>
       </div>
 

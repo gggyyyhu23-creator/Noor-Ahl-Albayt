@@ -121,15 +121,29 @@ class QuranTimingService {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout
 
-        const url = `https://mp3quran.net/api/v3/ayat_timing?surah=${surahNumber}&read=${readId}`;
-        const res = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeoutId);
-
-        if (!res.ok) {
-          return null;
+        // 4. Fetch from local proxy or official MP3Quran API
+        let rawData: any = null;
+        try {
+          const localRes = await fetch(`/api/quran/timing/${surahNumber}/${readId}`, { signal: controller.signal });
+          if (localRes.ok) {
+            rawData = await localRes.json();
+          }
+        } catch {
+          // fallback to direct
         }
 
-        const rawData = await res.json();
+        if (!rawData) {
+          const directUrl = `https://www.mp3quran.net/api/v3/ayat_timing?surah=${surahNumber}&read=${readId}`;
+          const res = await fetch(directUrl, { signal: controller.signal });
+          if (res.ok) {
+            rawData = await res.json();
+          }
+        }
+        clearTimeout(timeoutId);
+
+        if (!rawData) {
+          return null;
+        }
         const formatted = this.validateAndFormat(rawData);
 
         if (formatted && formatted.length > 0) {

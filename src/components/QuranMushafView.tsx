@@ -31,7 +31,9 @@ import {
   Repeat,
   Gauge,
   SlidersHorizontal,
-  Navigation
+  Navigation,
+  Target,
+  FileText
 } from 'lucide-react';
 import { 
   RECITERS_LIST, 
@@ -78,6 +80,8 @@ import {
 import { useAudioEngine } from '../context/AudioContext';
 import { QuranMiniPlayer } from './audio/QuranMiniPlayer';
 import { QuranFullPlayerModal } from './audio/QuranFullPlayerModal';
+import { MushafInteractivePage } from './mushaf/MushafInteractivePage';
+import { MushafPageAyah, quranMushafPageService } from '../services/quranMushafPageService';
 
 interface QuranMushafViewProps {
   initialPageNumber?: number;
@@ -91,7 +95,13 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
     playQuranSurah,
     togglePlay,
     pause,
+    resume,
     seek,
+    seekRelative,
+    setPlaybackSpeed,
+    setRepeatMode,
+    playbackSpeed,
+    repeatMode,
     isFullPlayerOpen,
     setIsFullPlayerOpen,
     quranState,
@@ -125,6 +135,11 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
     const savedReciterId = getLastSelectedReciter();
     return RECITERS_LIST.find((r) => r.id === savedReciterId) || RECITERS_LIST[0];
   });
+
+  // Authentic Ayah Polygons for current Mushaf page
+  const [pageAyahs, setPageAyahs] = useState<MushafPageAyah[]>([]);
+  const [isLoadingPageAyahs, setIsLoadingPageAyahs] = useState<boolean>(false);
+  const [isAutoScrollPaused, setIsAutoScrollPaused] = useState<boolean>(false);
 
   const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(true);
   const [tabMode, setTabMode] = useState<'reader' | 'downloads' | 'bookmarks'>('reader');
@@ -196,18 +211,41 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
     };
   }, [selectedSurahNum]);
 
+  // Load authentic ayah timings & polygon boundaries for physical Mushaf page (1-604)
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoadingPageAyahs(true);
+    quranMushafPageService
+      .getPageAyahs(currentPageNum, selectedReciter.readId || 123)
+      .then((data) => {
+        if (isMounted) {
+          setPageAyahs(data);
+          setIsLoadingPageAyahs(false);
+        }
+      });
+
+    // Preload adjacent pages for instantaneous turning
+    quranMushafPageService.preloadAdjacent(currentPageNum, selectedReciter.readId || 123);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentPageNum, selectedReciter.readId]);
+
   // Sync active ayah and mushaf page from audio engine if audio is playing
   useEffect(() => {
     if (quranState) {
-      if (quranState.surahNumber === selectedSurahNum) {
-        if (quranState.currentAyahNumber && quranState.currentAyahNumber !== activeAyahNum) {
-          setActiveAyahNum(quranState.currentAyahNumber);
-        }
+      if (quranState.surahNumber && quranState.surahNumber !== selectedSurahNum) {
+        setSelectedSurahNum(quranState.surahNumber);
       }
-      // If following audio in Mushaf Mode, automatically turn page when ayah page advances
+      if (quranState.currentAyahNumber && quranState.currentAyahNumber !== activeAyahNum) {
+        setActiveAyahNum(quranState.currentAyahNumber);
+      }
+      // If following audio in Mushaf Mode, automatically turn page when ayah page advances (unless user paused auto-follow)
       if (
         readingMode === 'mushaf' &&
         isPlaying &&
+        !isAutoScrollPaused &&
         quranState.currentMushafPage &&
         quranState.currentMushafPage !== currentPageNum
       ) {
@@ -221,6 +259,7 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
     selectedSurahNum,
     readingMode,
     isPlaying,
+    isAutoScrollPaused,
     currentPageNum,
     activeAyahNum,
   ]);
@@ -324,6 +363,13 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
     const startAyah = getFirstAyahOnPage(target);
     setActiveAyahNum(startAyah.ayahNumber);
 
+    // If audio is playing and user manually moved away from playing page, pause auto-follow
+    if (isPlaying && quranState?.currentMushafPage && quranState.currentMushafPage !== target) {
+      setIsAutoScrollPaused(true);
+    } else {
+      setIsAutoScrollPaused(false);
+    }
+
     const updated = saveQuranContinueReading({
       lastViewMode: 'mushaf',
       lastMushafPage: target,
@@ -338,6 +384,100 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
       surahNumber: meta.surahNumber,
       currentAyahNumber: startAyah.ayahNumber,
     });
+  };
+
+  // Direct click on Ayah inside interactive Mushaf polygon (Requirement 4)
+  const handleMushafAyahClick = async (surahNumber: number, ayahNumber: number, startMs: number) => {
+    setSelectedSurahNum(surahNumber);
+    setActiveAyahNum(ayahNumber);
+    setIsAutoScrollPaused(false);
+
+    saveQuranContinueReading({
+      lastViewMode: 'mushaf',
+      lastSurahNumber: surahNumber,
+      lastAyahNumber: ayahNumber,
+      lastMushafPage: currentPageNum,
+      lastAudioPositionSec: startMs / 1000,
+    });
+
+    // If already playing this surah and reciter, seek directly to startMs
+    if (
+      isPlaying &&
+      currentTrack?.type === 'quran' &&
+      quranState?.surahNumber === surahNumber &&
+      quranState?.reciterId === selectedReciter.id
+    ) {
+      seek(startMs / 1000);
+      updateQuranState({
+        currentAyahNumber: ayahNumber,
+        activeAyahHighlight: ayahNumber,
+        currentMushafPage: currentPageNum,
+      });
+      return;
+    }
+
+    // Otherwise initiate playback from this ayah
+    await playQuranSurah(surahNumber, selectedReciter.id, {
+      startAyah: ayahNumber,
+      startPage: currentPageNum,
+      startTimeSec: startMs / 1000,
+    });
+  };
+
+  // Jump from Mushaf mode to Text mode (Requirement 7)
+  const handleJumpFromMushafToText = (surahNumber: number, ayahNumber: number) => {
+    setSelectedSurahNum(surahNumber);
+    setActiveAyahNum(ayahNumber);
+    setReadingMode('text');
+
+    saveQuranContinueReading({
+      lastViewMode: 'text',
+      lastSurahNumber: surahNumber,
+      lastAyahNumber: ayahNumber,
+      lastMushafPage: currentPageNum,
+    });
+
+    updateQuranState({
+      viewMode: 'text',
+      surahNumber,
+      currentAyahNumber: ayahNumber,
+      currentMushafPage: currentPageNum,
+    });
+  };
+
+  // Jump from Text mode to Mushaf mode (Requirement 7)
+  const handleJumpFromTextToMushaf = (surahNumber: number, ayahNumber: number) => {
+    const targetPage = getMushafPageForAyah(surahNumber, ayahNumber);
+    setCurrentPageNum(targetPage);
+    setSelectedSurahNum(surahNumber);
+    setActiveAyahNum(ayahNumber);
+    setIsAutoScrollPaused(false);
+    setReadingMode('mushaf');
+
+    saveQuranContinueReading({
+      lastViewMode: 'mushaf',
+      lastMushafPage: targetPage,
+      lastSurahNumber: surahNumber,
+      lastAyahNumber: ayahNumber,
+    });
+
+    updateQuranState({
+      viewMode: 'mushaf',
+      currentMushafPage: targetPage,
+      surahNumber,
+      currentAyahNumber: ayahNumber,
+    });
+  };
+
+  // Resume auto-scroll if user navigated away manually (Requirement 11)
+  const handleResumeAutoScroll = () => {
+    setIsAutoScrollPaused(false);
+    if (quranState?.currentMushafPage && quranState.currentMushafPage !== currentPageNum) {
+      setCurrentPageNum(quranState.currentMushafPage);
+    }
+    if (quranState?.currentAyahNumber) {
+      setActiveAyahNum(quranState.currentAyahNumber);
+    }
   };
 
   const handleNextPage = () => {
@@ -938,8 +1078,8 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
         /* ============================================================== */
         /* MODE 1: PHYSICAL MUSHAF PAGES (1 - 604)                        */
         /* ============================================================== */
-        <div className="space-y-3">
-          {/* Page Meta Ribbon Bar */}
+        <div className="space-y-4">
+          {/* Top Page Meta Ribbon Bar */}
           <div className="px-4 py-2.5 rounded-xl bg-[#0d221a] border border-[#1c4737] flex flex-wrap items-center justify-between gap-2 text-xs text-[#c4ded3]">
             <div className="flex items-center gap-3">
               <span className="font-bold text-[#d4af37]">سورة {pageMeta.surahName}</span>
@@ -974,116 +1114,66 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
             </div>
           </div>
 
-          {/* Physical Mushaf Book Frame with Page Turn */}
-          <div 
+          {/* Interactive Vector Mushaf Page Container with Swipe & Chevrons */}
+          <div
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
-            className={`relative rounded-2xl p-2 sm:p-6 transition-all duration-300 overflow-hidden shadow-2xl border ${
-              themeMode === 'night'
-                ? 'bg-[#08120e] border-[#1b3f31]'
-                : 'bg-[#f7f2e7] border-[#d9c7a3]'
-            }`}
-            style={{ minHeight: '620px' }}
+            className="relative"
           >
-            {/* Ornate Border */}
-            <div className={`w-full h-full rounded-xl p-2 sm:p-4 border-2 ${
-              themeMode === 'night' ? 'border-[#d4af37]/30' : 'border-[#b89b58]/50'
-            } relative flex flex-col items-center justify-center`}>
-              
-              {/* Corner Ornaments */}
-              <div className="absolute top-2 right-2 w-6 h-6 border-t-2 border-r-2 border-[#d4af37]/60 pointer-events-none" />
-              <div className="absolute top-2 left-2 w-6 h-6 border-t-2 border-l-2 border-[#d4af37]/60 pointer-events-none" />
-              <div className="absolute bottom-2 right-2 w-6 h-6 border-b-2 border-r-2 border-[#d4af37]/60 pointer-events-none" />
-              <div className="absolute bottom-2 left-2 w-6 h-6 border-b-2 border-l-2 border-[#d4af37]/60 pointer-events-none" />
+            <MushafInteractivePage
+              pageNumber={currentPageNum}
+              themeMode={themeMode}
+              activeAyahNumber={activeAyahNum}
+              activeSurahNumber={selectedSurahNum}
+              isPlaying={isPlaying}
+              ayahs={pageAyahs}
+              isLoadingAyahs={isLoadingPageAyahs}
+              pageZoom={pageZoom}
+              onZoomChange={setPageZoom}
+              onAyahClick={handleMushafAyahClick}
+              onSwitchToTextMode={handleJumpFromMushafToText}
+              isAutoScrollPaused={isAutoScrollPaused}
+              onResumeAutoScroll={handleResumeAutoScroll}
+              surahName={pageMeta.surahName}
+              juzNumber={pageMeta.juz}
+            />
 
-              {/* Mushaf Page Image Container with Zoom */}
-              <div 
-                className="w-full flex items-center justify-center overflow-auto transition-transform duration-200"
-                style={{ transform: `scale(${pageZoom / 100})`, transformOrigin: 'top center' }}
-              >
-                {!imageError ? (
-                  <img
-                    src={getMushafPageImageUrl(currentPageNum)}
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      const fallback = getMushafPageFallbackUrl(currentPageNum);
-                      if (target.src !== fallback) {
-                        target.src = fallback;
-                      } else {
-                        setImageError(true);
-                      }
-                    }}
-                    alt={`صفحة المصحف ${currentPageNum}`}
-                    className={`max-w-full h-auto object-contain rounded-lg shadow-md transition-all ${
-                      themeMode === 'night'
-                        ? 'filter invert brightness-90 contrast-125 hue-rotate-180'
-                        : ''
-                    }`}
-                    style={{ maxHeight: '720px' }}
-                    loading="eager"
-                  />
-                ) : (
-                  /* Fallback Vector Text Renderer for Page */
-                  <div className={`p-8 text-center space-y-6 ${
-                    themeMode === 'night' ? 'text-[#f5ebd7]' : 'text-[#1c1810]'
-                  }`}>
-                    <div className="border-b-2 border-[#d4af37] pb-3">
-                      <span className="text-xl font-bold font-quran">سورة {pageMeta.surahName}</span>
-                    </div>
-                    <div className="text-sm font-quran leading-loose">
-                      بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-                    </div>
-                    <p className="text-xs text-[#8aa598]">
-                      صفحة المصحف رقم {currentPageNum} (الجزء {pageMeta.juz})
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Bottom Page Number Badge */}
-              <div className="mt-4 pt-2 border-t border-[#d4af37]/30 flex items-center justify-between w-full text-xs text-[#8ea89c]">
-                <span>الجزء {pageMeta.juz}</span>
-                <span className="font-mono font-bold text-[#d4af37]">« {currentPageNum} »</span>
-                <span>سورة {pageMeta.surahName}</span>
-              </div>
-            </div>
-
-            {/* Floating Left / Right Navigation Arrows */}
+            {/* Floating Left / Right Navigation Chevrons */}
             <button
               onClick={handlePrevPage}
               disabled={currentPageNum <= 1}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-[#122e23]/80 hover:bg-[#d4af37] text-white hover:text-[#0b1311] border border-[#d4af37]/40 shadow-xl transition-all disabled:opacity-30 disabled:pointer-events-none"
+              className="absolute right-1 sm:right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-[#102920]/90 hover:bg-[#d4af37] text-white hover:text-[#0b1311] border border-[#d4af37]/50 shadow-2xl transition-all disabled:opacity-20 disabled:pointer-events-none z-20 cursor-pointer"
               title="الصفحة السابقة"
             >
-              <ChevronRight className="w-6 h-6" />
+              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
             <button
               onClick={handleNextPage}
               disabled={currentPageNum >= 604}
-              className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-[#122e23]/80 hover:bg-[#d4af37] text-white hover:text-[#0b1311] border border-[#d4af37]/40 shadow-xl transition-all disabled:opacity-30 disabled:pointer-events-none"
+              className="absolute left-1 sm:left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-[#102920]/90 hover:bg-[#d4af37] text-white hover:text-[#0b1311] border border-[#d4af37]/50 shadow-2xl transition-all disabled:opacity-20 disabled:pointer-events-none z-20 cursor-pointer"
               title="الصفحة التالية"
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
 
-          {/* Bottom Slider & Page Selector */}
-          <div className="p-4 rounded-xl bg-[#0e231c] border border-[#1c4737] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+          {/* Bottom Slider & Navigation Row */}
+          <div className="p-3 sm:p-4 rounded-xl bg-[#0e231c] border border-[#1c4737] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={handlePrevPage}
                 disabled={currentPageNum <= 1}
-                className="px-3 py-1.5 rounded-lg bg-[#143328] hover:bg-[#1f4a3b] text-white font-bold transition-all disabled:opacity-30"
+                className="px-3 py-1.5 rounded-lg bg-[#143328] hover:bg-[#1f4a3b] text-white font-bold transition-all disabled:opacity-30 cursor-pointer"
               >
                 السابقة
               </button>
-              <span className="font-mono font-bold text-[#d4af37] px-2">{currentPageNum} / 604</span>
+              <span className="font-mono font-bold text-[#d4af37] px-2 text-sm">{currentPageNum} / 604</span>
               <button
                 onClick={handleNextPage}
                 disabled={currentPageNum >= 604}
-                className="px-3 py-1.5 rounded-lg bg-[#143328] hover:bg-[#1f4a3b] text-white font-bold transition-all disabled:opacity-30"
+                className="px-3 py-1.5 rounded-lg bg-[#143328] hover:bg-[#1f4a3b] text-white font-bold transition-all disabled:opacity-30 cursor-pointer"
               >
                 التالية
               </button>
@@ -1104,12 +1194,125 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => handleStartPlaySurah(selectedSurahNum)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#d4af37] text-[#0b1311] font-bold shadow hover:bg-[#e4be46] transition-all"
+                onClick={() => setIsJumpModalOpen(true)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#143328] hover:bg-[#1e4a39] text-[#c4ded3] font-bold border border-[#235340] transition-all cursor-pointer"
               >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>استماع للسورة</span>
+                <Navigation className="w-3.5 h-3.5 text-[#d4af37]" />
+                <span>انتقال سريع</span>
               </button>
+            </div>
+          </div>
+
+          {/* Comprehensive Audio & Reciter Toolbar (Requirements 5 & 6) */}
+          <div className="p-3 sm:p-4 rounded-xl bg-[#0d221a] border border-[#1d4637] flex flex-wrap items-center justify-between gap-3 text-xs shadow-lg">
+            {/* Reciter Selector */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-[#8fa79c] shrink-0 font-medium">القارئ:</label>
+              <select
+                value={selectedReciter.id}
+                onChange={(e) => {
+                  const r = RECITERS_LIST.find((item) => item.id === e.target.value);
+                  if (r) handleReciterChange(r);
+                }}
+                className="px-2.5 py-1.5 rounded-lg bg-[#122e23] border border-[#235340] text-white text-xs font-bold focus:outline-none focus:border-[#d4af37] cursor-pointer"
+              >
+                {RECITERS_LIST.map((r) => (
+                  <option key={r.id} value={r.id} className="bg-[#0e231c] text-white">
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Audio Playback Controls */}
+            <div className="flex items-center gap-2">
+              {/* Seek -10s */}
+              <button
+                onClick={() => seekRelative(-10)}
+                className="p-1.5 rounded-lg bg-[#143328] hover:bg-[#1e4938] text-[#c4ded3] border border-[#235340] transition-all"
+                title="ترجيع 10 ثوانٍ"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Main Play / Pause Button */}
+              <button
+                onClick={() => {
+                  if (isPlaying && currentTrack?.type === 'quran') {
+                    togglePlay();
+                  } else {
+                    handleStartPlaySurah(selectedSurahNum, activeAyahNum);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#d4af37] text-[#0b1311] font-bold text-xs shadow hover:bg-amber-400 transition-all cursor-pointer"
+              >
+                {isPlaying && currentTrack?.type === 'quran' ? (
+                  <>
+                    <Pause className="w-3.5 h-3.5 fill-current" />
+                    <span>إيقاف مؤقت</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>تشغيل التلاوة</span>
+                  </>
+                )}
+              </button>
+
+              {/* Seek +10s */}
+              <button
+                onClick={() => seekRelative(10)}
+                className="p-1.5 rounded-lg bg-[#143328] hover:bg-[#1e4938] text-[#c4ded3] border border-[#235340] transition-all"
+                title="تقديم 10 ثوانٍ"
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Repeat Mode & Speed Controls (Requirement 5) */}
+            <div className="flex items-center gap-2">
+              {/* Repeat Mode Button */}
+              <button
+                onClick={() => {
+                  if (repeatMode === 'off') setRepeatMode('ayah');
+                  else if (repeatMode === 'ayah') setRepeatMode('track');
+                  else setRepeatMode('off');
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                  repeatMode === 'ayah'
+                    ? 'bg-[#183d2e] text-[#d4af37] border-[#d4af37]'
+                    : repeatMode === 'track'
+                    ? 'bg-[#16382b] text-emerald-400 border-emerald-500'
+                    : 'bg-[#10241c] text-[#7f9e92] border-[#1d4334]'
+                }`}
+                title="تكرار الآية أو السورة"
+              >
+                <Repeat className="w-3.5 h-3.5" />
+                <span>
+                  {repeatMode === 'ayah'
+                    ? 'تكرار الآية'
+                    : repeatMode === 'track'
+                    ? 'تكرار السورة'
+                    : 'تكرار: معطل'}
+                </span>
+              </button>
+
+              {/* Playback Speed Pills */}
+              <div className="flex items-center rounded-lg bg-[#112a20] border border-[#234d3d] p-0.5">
+                {[0.75, 1, 1.25, 1.5].map((speed) => (
+                  <button
+                    key={speed}
+                    onClick={() => setPlaybackSpeed(speed)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-mono transition-all ${
+                      playbackSpeed === speed
+                        ? 'bg-[#d4af37] text-[#0b1311] font-bold'
+                        : 'text-[#8ea89c] hover:text-white'
+                    }`}
+                  >
+                    {speed}x
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -1303,6 +1506,19 @@ export const QuranMushafView: React.FC<QuranMushafViewProps> = ({ initialPageNum
                         </p>
 
                         <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Jump to Mushaf Mode for this Ayah (Requirement 7) */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleJumpFromTextToMushaf(selectedSurahNum, ayah.numberInSurah);
+                            }}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#143328]/50 hover:bg-[#d4af37] text-[#8fa89b] hover:text-[#0b1311] border border-[#204a3a] transition-all text-[11px] font-medium cursor-pointer"
+                            title="عرض وتحديد هذه الآية في صفحة المصحف الشريف"
+                          >
+                            <BookOpen className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">في المصحف</span>
+                          </button>
+
                           {/* Play / Pause this Ayah */}
                           <button
                             onClick={(e) => {

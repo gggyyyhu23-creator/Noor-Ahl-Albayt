@@ -1,4 +1,4 @@
-export type AudioTrackType = 'quran' | 'mafatih' | 'prayer_lesson' | 'general';
+export type AudioTrackType = 'quran' | 'mafatih' | 'prayer_lesson' | 'adhan' | 'general';
 
 export type RepeatMode = 'off' | 'track' | 'ayah';
 

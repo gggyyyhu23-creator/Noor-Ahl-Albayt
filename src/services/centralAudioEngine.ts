@@ -3,7 +3,8 @@ import {
   QuranAudioTrack, 
   QuranPlaybackState, 
   AudioEngineState, 
-  RepeatMode 
+  RepeatMode,
+  BaseAudioTrack
 } from '../types/audioEngine';
 import { getCachedAudioUrl } from '../utils/audioStorage';
 import { 
@@ -15,6 +16,7 @@ import {
 import { RECITERS_LIST } from '../data/quranData';
 import { ALL_114_SURAHS } from '../data/quranSurahsAll';
 import { getMushafPageForAyah } from '../utils/quranPageMapping';
+import { prayerAdhanService } from './prayerAdhanService';
 
 type AudioListener = (state: AudioEngineState) => void;
 
@@ -332,6 +334,34 @@ class CentralAudioEngine {
       error: null,
       quranState: qState,
     });
+
+    // Check if this is an adhan track
+    if (track.type === 'adhan') {
+      this.stopSpeech();
+      if (this.audio) {
+        this.audio.pause();
+        this.audio.src = '';
+      }
+      this.setState({
+        currentTrack: track,
+        isPlaying: true,
+        isLoading: false,
+        duration: track.approxDurationSec || 8,
+        currentTime: 0,
+        progress: 0,
+        quranState: null,
+        error: null,
+      });
+
+      if (track.scriptText === 'takbeer_call') {
+        await prayerAdhanService.playTakbeerCall(0.85);
+      } else {
+        await prayerAdhanService.playSpiritualAdhanChime(0.85);
+      }
+
+      this.setState({ isPlaying: false, progress: 100 });
+      return;
+    }
 
     // Check if this is a prayer lesson without external audioUrl
     if (track.type === 'prayer_lesson' && (!track.audioUrl || !track.audioUrl.startsWith('http'))) {
@@ -685,6 +715,7 @@ class CentralAudioEngine {
 
   public stop() {
     this.stopSpeech();
+    prayerAdhanService.stopAudio();
 
     if (this.state.currentTrack?.type === 'quran' && this.audio) {
       this.saveContinueReadingThrottled(

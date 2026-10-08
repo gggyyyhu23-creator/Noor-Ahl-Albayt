@@ -16,6 +16,39 @@ export interface CityCoords {
   lat: number;
   lng: number;
   timezone: number; // UTC offset in hours
+  isIraqi?: boolean;
+}
+
+export type CalculationMethodId = 'tehran' | 'najaf' | 'shia_general';
+
+export interface CalculationMethod {
+  id: CalculationMethodId;
+  name: string;
+  description: string;
+  fajrAngle: number;
+  maghribAngle: number;
+  ishaAngle: number;
+}
+
+export interface PrayerOffsets {
+  fajr: number;
+  sunrise: number;
+  dhuhr: number;
+  asr: number;
+  maghrib: number;
+  isha: number;
+}
+
+export interface PrayerNotificationSettings {
+  fajr: boolean;
+  sunrise: boolean;
+  dhuhr: boolean;
+  asr: boolean;
+  maghrib: boolean;
+  isha: boolean;
+  preReminderMinutes: 0 | 5 | 10 | 15;
+  soundType: 'spiritual_chime' | 'takbeer_call' | 'silent';
+  volume: number; // 0 to 1
 }
 
 export interface PrayerTimesResult {
@@ -30,6 +63,11 @@ export interface PrayerTimesResult {
   nextPrayerName: string;
   nextPrayerTime: string;
   remainingTime: string;
+  currentPrayerName?: string;
+  remainingSeconds?: number;
+  countdownFormatted?: string;
+  dayPeriod?: string;
+  isPassed?: Record<string, boolean>;
 }
 
 export interface DuaItem {

@@ -39,7 +39,9 @@ export const IslamicArtStudioView: React.FC = () => {
   const [stylePreset, setStylePreset] = useState<'calligraphy' | 'shrine' | 'spiritual'>('calligraphy');
   const [aspectRatio, setAspectRatio] = useState<string>('1:1');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<{ message: string; details?: string; code?: string } | null>(null);
+  const [showLightbox, setShowLightbox] = useState<boolean>(false);
+  const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
 
   // Results & Gallery
   const [generatedImages, setGeneratedImages] = useState<ShowcaseImage[]>(INITIAL_SHOWCASE);
@@ -59,7 +61,7 @@ export const IslamicArtStudioView: React.FC = () => {
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      setErrorMessage('يرجى كتابة وصف للوحة المطلوبة');
+      setErrorMessage({ message: 'يرجى كتابة وصف للوحة المطلوبة' });
       return;
     }
 
@@ -79,7 +81,12 @@ export const IslamicArtStudioView: React.FC = () => {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'تعذر إنشاء اللوحة بالذكاء الاصطناعي');
+        setErrorMessage({
+          code: data.code,
+          message: data.error || 'تعذر إنشاء اللوحة بالذكاء الاصطناعي',
+          details: data.details,
+        });
+        return;
       }
 
       if (data.imageUrl) {
@@ -96,7 +103,9 @@ export const IslamicArtStudioView: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error generating image:', err);
-      setErrorMessage(err.message || 'حدث خطأ أثناء الاتصال بنموذج الذكاء الاصطناعي لتوليد الصور.');
+      setErrorMessage({
+        message: err.message || 'حدث خطأ أثناء الاتصال بنموذج الذكاء الاصطناعي لتوليد الصور.',
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -104,7 +113,7 @@ export const IslamicArtStudioView: React.FC = () => {
 
   const handleEditImage = async () => {
     if (!editImageBase64 || !editPrompt.trim()) {
-      setErrorMessage('يرجى تحديد الصورة وإدخال تعليمات التعديل');
+      setErrorMessage({ message: 'يرجى تحديد الصورة وإدخال تعليمات التعديل' });
       return;
     }
 
@@ -123,7 +132,12 @@ export const IslamicArtStudioView: React.FC = () => {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'تعذر تعديل اللوحة');
+        setErrorMessage({
+          code: data.code,
+          message: data.error || 'تعذر تعديل اللوحة',
+          details: data.details,
+        });
+        return;
       }
 
       if (data.imageUrl) {
@@ -139,7 +153,9 @@ export const IslamicArtStudioView: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error editing image:', err);
-      setErrorMessage(err.message || 'تعذر تعديل الصورة بالذكاء الاصطناعي.');
+      setErrorMessage({
+        message: err.message || 'تعذر تعديل الصورة بالذكاء الاصطناعي.',
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -156,13 +172,47 @@ export const IslamicArtStudioView: React.FC = () => {
     }
   };
 
-  const handleDownload = (imgUrl: string, title: string) => {
-    const a = document.createElement('a');
-    a.href = imgUrl;
-    a.download = `${title.replace(/\s+/g, '_')}.png`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const handleDownload = async (imgUrl: string, title: string) => {
+    try {
+      let downloadUrl = imgUrl;
+      let cleanup = false;
+
+      if (imgUrl.startsWith('data:')) {
+        const parts = imgUrl.split(',');
+        const byteString = atob(parts[1]);
+        const mimeString = parts[0].split(':')[1].split(';')[0];
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: mimeString });
+        downloadUrl = URL.createObjectURL(blob);
+        cleanup = true;
+      }
+
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `${title.replace(/\s+/g, '_') || 'islamic_art'}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      if (cleanup) {
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 5000);
+      }
+    } catch (e) {
+      console.error('Download error:', e);
+      window.open(imgUrl, '_blank');
+    }
+  };
+
+  const handleCopyPrompt = () => {
+    if (prompt) {
+      navigator.clipboard.writeText(prompt);
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 2000);
+    }
   };
 
   return (
@@ -389,8 +439,54 @@ export const IslamicArtStudioView: React.FC = () => {
           )}
 
           {errorMessage && (
-            <div className="p-3 rounded-xl bg-red-950/70 border border-red-800 text-red-200 text-xs">
-              {errorMessage}
+            <div className={`p-4 rounded-xl border text-xs sm:text-sm space-y-2.5 ${
+              errorMessage.code === 'PAID_KEY_REQUIRED'
+                ? 'bg-[#181204] border-[#d4af37]/70 text-[#f3eed9]'
+                : 'bg-red-950/70 border-red-800 text-red-200'
+            }`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 font-bold text-[#d4af37]">
+                  <Sparkles className="w-4 h-4 shrink-0 text-[#d4af37]" />
+                  <span>
+                    {errorMessage.code === 'PAID_KEY_REQUIRED'
+                      ? 'ملاحظة حول مفتاح توليد الصور (Google AI Studio)'
+                      : 'تنبيه في استدعاء نموذج الذكاء الاصطناعي'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrorMessage(null)}
+                  className="text-xs text-[#a2beb3] hover:text-white px-1.5 py-0.5 rounded cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p className="leading-relaxed text-xs sm:text-[13px]">{errorMessage.message}</p>
+
+              {errorMessage.details && (
+                <div className="p-2.5 rounded-lg bg-[#0b1712]/80 border border-[#234d3d] text-[11px] text-[#cbdad3] font-mono leading-relaxed">
+                  {errorMessage.details}
+                </div>
+              )}
+
+              {errorMessage.code === 'PAID_KEY_REQUIRED' && (
+                <div className="pt-2 border-t border-[#d4af37]/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <span className="text-[11px] text-[#d4af37]">
+                    💡 يمكنك استعراض وتحميل اللوحات الفنية الجاهزة في المعرض أدناه مباشرة:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentResult(INITIAL_SHOWCASE[0].url);
+                      setErrorMessage(null);
+                    }}
+                    className="px-3 py-1 bg-[#d4af37] text-[#0b1311] font-bold rounded-lg text-xs hover:brightness-105 cursor-pointer"
+                  >
+                    عرض لوحة من المعرض
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -405,14 +501,32 @@ export const IslamicArtStudioView: React.FC = () => {
               </span>
 
               {currentResult && (
-                <button
-                  onClick={() => handleDownload(currentResult, 'islamic_art')}
-                  className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#143226] text-white hover:bg-[#1a4031] text-xs font-semibold border border-[#255743]"
-                  title="تنزيل اللوحة بدقة عالية"
-                >
-                  <Download className="w-3.5 h-3.5 text-[#d4af37]" />
-                  <span>تنزيل اللوحة</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={handleCopyPrompt}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#11271f] text-[#cbdad3] hover:text-white text-xs border border-[#1f4a3b]"
+                    title="نسخ الوصف"
+                  >
+                    <span>{copiedPrompt ? 'تم النسخ!' : 'نسخ الوصف'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowLightbox(true)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#11271f] text-[#cbdad3] hover:text-white text-xs border border-[#1f4a3b]"
+                    title="تكبير اللوحة"
+                  >
+                    <span>تكبير</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDownload(currentResult, 'islamic_art')}
+                    className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#d4af37] text-[#0b1311] hover:brightness-105 text-xs font-bold border border-[#d4af37]"
+                    title="تنزيل اللوحة بدقة عالية"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>تنزيل اللوحة</span>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -423,7 +537,8 @@ export const IslamicArtStudioView: React.FC = () => {
                   src={currentResult}
                   alt="Islamic Artwork"
                   referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover transition-all"
+                  className="w-full h-full object-cover transition-all cursor-pointer"
+                  onClick={() => setShowLightbox(true)}
                 />
               ) : (
                 <div className="text-center p-8 text-[#719284] text-xs">
@@ -434,6 +549,47 @@ export const IslamicArtStudioView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Lightbox Modal */}
+      {showLightbox && currentResult && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowLightbox(false)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-[#091712] border-2 border-[#d4af37]/60 rounded-2xl overflow-hidden p-3 shadow-2xl flex flex-col items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex items-center justify-between text-xs text-[#cbdad3] px-2">
+              <span className="font-bold text-[#d4af37]">عرض اللوحة بدقة عالية</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleDownload(currentResult, 'islamic_art')}
+                  className="px-3 py-1 rounded-lg bg-[#d4af37] text-[#0b1311] font-bold text-xs flex items-center gap-1 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>تنزيل</span>
+                </button>
+                <button
+                  onClick={() => setShowLightbox(false)}
+                  className="px-2.5 py-1 rounded-lg bg-[#1b3e31] text-white hover:bg-red-800 text-xs cursor-pointer"
+                >
+                  ✕ إغلاق
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-[75vh] overflow-auto rounded-xl">
+              <img
+                src={currentResult}
+                alt="High Resolution Artwork"
+                referrerPolicy="no-referrer"
+                className="max-h-[75vh] w-auto object-contain rounded-xl"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Gallery / Showcase */}
       <div className="space-y-3 pt-4 border-t border-[#1d4334]">
